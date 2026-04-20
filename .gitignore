@@ -1,0 +1,11 @@
+# Gradle
+.gradle/
+build/
+
+# devenv
+.devenv/
+.devenv.flake.nix
+
+# IntelliJ
+.idea/
+*.iml
