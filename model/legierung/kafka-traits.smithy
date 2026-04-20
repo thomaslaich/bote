@@ -8,6 +8,11 @@ structure kafkaTopic {
     /// The Kafka topic name.
     @required
     name: String
+
+    /// Whether the topic uses log compaction.
+    /// Only the latest message per key is retained.
+    /// Defaults to false.
+    compacted: Boolean
 }
 
 /// Marks an operation as a Kafka producer.
@@ -37,7 +42,3 @@ structure kafkaHeader {
     @required
     name: String
 }
-
-/// Marks a Kafka topic as log-compacted.
-@trait(selector: "operation")
-structure kafkaCompacted {}

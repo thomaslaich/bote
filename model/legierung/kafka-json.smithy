@@ -16,7 +16,6 @@ use smithy.api#protocolDefinition
         legierung#kafkaConsumer
         legierung#kafkaKey
         legierung#kafkaHeader
-        legierung#kafkaCompacted
     ]
 )
 @trait(selector: "service")
