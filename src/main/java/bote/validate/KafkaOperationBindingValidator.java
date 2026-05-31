@@ -2,7 +2,10 @@ package bote.validate;
 
 import software.amazon.smithy.model.Model;
 import software.amazon.smithy.model.shapes.OperationShape;
+import software.amazon.smithy.model.shapes.Shape;
 import software.amazon.smithy.model.shapes.ShapeId;
+import software.amazon.smithy.model.shapes.StructureShape;
+import software.amazon.smithy.model.traits.StreamingTrait;
 import software.amazon.smithy.model.validation.AbstractValidator;
 import software.amazon.smithy.model.validation.ValidationEvent;
 
@@ -11,8 +14,8 @@ import java.util.List;
 
 /**
  * Validates that every @send or @receive operation is bound to a topic via
- * @kafkaTopic, and that @send declares an input shape and @receive declares
- * an output shape.
+ * @kafkaTopic, that @send declares an input shape, and that @receive declares
+ * an output shape containing a @streaming union member.
  */
 public final class KafkaOperationBindingValidator extends AbstractValidator {
 
@@ -43,13 +46,33 @@ public final class KafkaOperationBindingValidator extends AbstractValidator {
                         + "(the message value written to the topic)."));
             }
 
-            if (isReceive && operation.getOutput().isEmpty()) {
-                events.add(error(operation,
-                        "@receive operations must define an output shape "
-                        + "(the message value read from the topic)."));
+            if (isReceive) {
+                if (operation.getOutput().isEmpty()) {
+                    events.add(error(operation,
+                            "@receive operations must define an output shape "
+                            + "containing a @streaming union member."));
+                } else {
+                    operation.getOutput()
+                            .flatMap(id -> model.getShape(id).flatMap(Shape::asStructureShape))
+                            .ifPresent(output -> validateStreamingUnion(model, operation, output, events));
+                }
             }
         }
 
         return events;
+    }
+
+    private void validateStreamingUnion(Model model, OperationShape operation,
+                                        StructureShape output, List<ValidationEvent> events) {
+        boolean hasStreamingUnion = output.getAllMembers().values().stream()
+                .anyMatch(member -> model.getShape(member.getTarget())
+                        .flatMap(Shape::asUnionShape)
+                        .map(union -> union.hasTrait(StreamingTrait.ID))
+                        .orElse(false));
+
+        if (!hasStreamingUnion) {
+            events.add(error(operation,
+                    "@receive operation output must contain a member targeting a @streaming union."));
+        }
     }
 }

@@ -16,6 +16,7 @@ class KafkaOperationBindingValidatorTest {
             namespace test
             use bote#kafkaJson
             use bote#send
+            use bote#receive
             use bote#kafkaTopic
 
             @kafkaJson
@@ -33,7 +34,7 @@ class KafkaOperationBindingValidatorTest {
     }
 
     @Test
-    void producerWithTopicIsValid() {
+    void senderWithTopicIsValid() {
         String model = PREAMBLE.formatted("PublishOrder") + """
                 @send
                 @kafkaTopic(name: "orders")
@@ -44,7 +45,7 @@ class KafkaOperationBindingValidatorTest {
     }
 
     @Test
-    void producerWithoutTopicIsError() {
+    void senderWithoutTopicIsError() {
         String model = PREAMBLE.formatted("PublishOrder") + """
                 @send
                 operation PublishOrder { input: Payload }
@@ -54,11 +55,61 @@ class KafkaOperationBindingValidatorTest {
     }
 
     @Test
-    void producerWithoutInputIsError() {
+    void senderWithoutInputIsError() {
         String model = PREAMBLE.formatted("PublishOrder") + """
                 @send
                 @kafkaTopic(name: "orders")
                 operation PublishOrder {}
+                """;
+        assertTrue(validate(model).stream().anyMatch(e -> e.getSeverity() == Severity.ERROR));
+    }
+
+    @Test
+    void receiverWithStreamingUnionIsValid() {
+        String model = PREAMBLE.formatted("ConsumeOrders") + """
+                @receive
+                @kafkaTopic(name: "orders")
+                operation ConsumeOrders {
+                    output := { events: OrderEventStream }
+                }
+                @streaming
+                union OrderEventStream { orderEvent: Payload }
+                structure Payload { value: String }
+                """;
+        assertTrue(validate(model).isEmpty());
+    }
+
+    @Test
+    void receiverWithoutOutputIsError() {
+        String model = PREAMBLE.formatted("ConsumeOrders") + """
+                @receive
+                @kafkaTopic(name: "orders")
+                operation ConsumeOrders {}
+                """;
+        assertTrue(validate(model).stream().anyMatch(e -> e.getSeverity() == Severity.ERROR));
+    }
+
+    @Test
+    void receiverWithoutStreamingUnionIsError() {
+        String model = PREAMBLE.formatted("ConsumeOrders") + """
+                @receive
+                @kafkaTopic(name: "orders")
+                operation ConsumeOrders { output: Payload }
+                structure Payload { value: String }
+                """;
+        assertTrue(validate(model).stream().anyMatch(e -> e.getSeverity() == Severity.ERROR));
+    }
+
+    @Test
+    void receiverWithoutTopicIsError() {
+        String model = PREAMBLE.formatted("ConsumeOrders") + """
+                @receive
+                operation ConsumeOrders {
+                    output := { events: OrderEventStream }
+                }
+                @streaming
+                union OrderEventStream { orderEvent: Payload }
+                structure Payload { value: String }
                 """;
         assertTrue(validate(model).stream().anyMatch(e -> e.getSeverity() == Severity.ERROR));
     }

@@ -24,7 +24,8 @@ structure kafkaTopic {
 structure send {}
 
 /// Marks an operation as receiving messages from a Kafka topic.
-/// The operation output is the message value read from the topic.
+/// The operation output must contain a member targeting a @streaming union,
+/// where each union member is a possible event type on the topic.
 @trait(
     selector: "operation"
     conflicts: [bote#send]

@@ -80,7 +80,14 @@ operation PublishOrderFulfilled {
 @receive
 @kafkaTopic(name: "orders")
 operation ConsumeOrders {
-    output: OrderEvent
+    output := {
+        events: OrderEventStream
+    }
+}
+
+@streaming
+union OrderEventStream {
+    orderEvent: OrderEvent
 }
 
 structure OrderFulfilledEvent {
