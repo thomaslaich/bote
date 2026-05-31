@@ -1,6 +1,6 @@
 $version: "2"
 
-namespace legierung
+namespace bote
 
 /// Binds an operation to a Kafka topic.
 @trait(selector: "operation")
@@ -19,15 +19,6 @@ structure kafkaTopic {
 /// The operation input is the message value written to the topic.
 @trait(selector: "operation")
 structure kafkaProducer {}
-
-/// Marks an operation as a Kafka consumer.
-/// The operation output is the message value read from the topic.
-@trait(selector: "operation")
-structure kafkaConsumer {
-    /// The consumer group ID.
-    @required
-    group: String
-}
 
 /// Marks a structure member as the Kafka message key.
 /// Only one member per structure may carry this trait.

@@ -1,0 +1,3 @@
+bote.validate.KafkaOperationBindingValidator
+bote.validate.KafkaKeyValidator
+bote.validate.KafkaTopicConfigConsistencyValidator

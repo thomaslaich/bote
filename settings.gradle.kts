@@ -1,1 +1,1 @@
-rootProject.name = "legierung"
+rootProject.name = "bote"

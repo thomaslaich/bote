@@ -9,3 +9,6 @@ build/
 # IntelliJ
 .idea/
 *.iml
+
+# Metals (VS Code Scala plugin)
+.metals/

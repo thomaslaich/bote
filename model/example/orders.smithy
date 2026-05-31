@@ -1,17 +1,17 @@
 $version: "2"
 
-// Example: an order events service demonstrating the legierung Kafka protocol.
+// Example: an order events service demonstrating the bote Kafka protocol.
 //
 // Shows producer and consumer operations on a single topic, message key
 // usage, and header binding.
 namespace example
 
-use legierung#kafkaConsumer
-use legierung#kafkaHeader
-use legierung#kafkaJson
-use legierung#kafkaKey
-use legierung#kafkaProducer
-use legierung#kafkaTopic
+use bote#kafkaHeader
+use bote#kafkaJson
+use bote#kafkaKey
+use bote#kafkaProducer
+use bote#kafkaTopic
+use bote#kafkaTopicConfig
 
 // ---------------------------------------------------------------------------
 // Service
@@ -20,9 +20,7 @@ use legierung#kafkaTopic
 service OrderService {
     operations: [
         PublishOrder
-        ConsumeOrders
         PublishOrderFulfilled
-        ConsumeOrderFulfilled
     ]
 }
 
@@ -32,18 +30,18 @@ service OrderService {
 /// Publish an order event to the orders topic.
 @kafkaProducer
 @kafkaTopic(name: "orders")
+@kafkaTopicConfig(
+    partitions: 12
+    replicationFactor: 3
+    retentionMs: 604800000
+    // 7 days
+    minInsyncReplicas: 2
+)
 operation PublishOrder {
     input: OrderEvent
 }
 
-/// Consume order events from the orders topic.
-@kafkaConsumer(group: "order-processor")
-@kafkaTopic(name: "orders")
-operation ConsumeOrders {
-    output: OrderEvent
-}
-
-/// An order event written to / read from the orders topic.
+/// An order event written to the orders topic.
 structure OrderEvent {
     /// Kafka message key — routes all events for the same order to one partition.
     @kafkaKey
@@ -74,13 +72,6 @@ enum OrderStatus {
 @kafkaTopic(name: "order-fulfilled", compacted: true)
 operation PublishOrderFulfilled {
     input: OrderFulfilledEvent
-}
-
-/// Consume order-fulfilled events.
-@kafkaConsumer(group: "fulfillment-notifier")
-@kafkaTopic(name: "order-fulfilled", compacted: true)
-operation ConsumeOrderFulfilled {
-    output: OrderFulfilledEvent
 }
 
 structure OrderFulfilledEvent {
