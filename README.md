@@ -17,7 +17,7 @@ Three Kafka protocol traits, each modelling a different serialization format:
 Supporting traits applied at operation and member level:
 
 - `@send` — marks an operation as sending messages to a topic (must declare `input`)
-- `@receive` — marks an operation as receiving messages from a topic (must declare `output`)
+- `@receive` — marks an operation as receiving messages from a topic (output must contain a `@streaming` union)
 - `@kafkaTopic` — binds an operation to a named Kafka topic (with optional log compaction)
 - `@kafkaKey` — marks a structure member as the Kafka message key
 - `@kafkaHeader` — maps a structure member to a Kafka message header
@@ -54,7 +54,14 @@ operation PublishOrder {
 @receive
 @kafkaTopic(name: "orders")
 operation ConsumeOrders {
-    output: OrderEvent
+    output := {
+        events: OrderEventStream
+    }
+}
+
+@streaming
+union OrderEventStream {
+    orderEvent: OrderEvent
 }
 
 structure OrderEvent {
