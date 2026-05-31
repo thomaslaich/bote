@@ -15,10 +15,21 @@ structure kafkaTopic {
     compacted: Boolean
 }
 
-/// Marks an operation as a Kafka producer.
+/// Marks an operation as sending messages to a Kafka topic.
 /// The operation input is the message value written to the topic.
-@trait(selector: "operation")
-structure kafkaProducer {}
+@trait(
+    selector: "operation"
+    conflicts: [bote#receive]
+)
+structure send {}
+
+/// Marks an operation as receiving messages from a Kafka topic.
+/// The operation output is the message value read from the topic.
+@trait(
+    selector: "operation"
+    conflicts: [bote#send]
+)
+structure receive {}
 
 /// Marks a structure member as the Kafka message key.
 /// Only one member per structure may carry this trait.

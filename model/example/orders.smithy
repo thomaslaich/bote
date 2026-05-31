@@ -9,9 +9,10 @@ namespace example
 use bote#kafkaHeader
 use bote#kafkaJson
 use bote#kafkaKey
-use bote#kafkaProducer
 use bote#kafkaTopic
 use bote#kafkaTopicConfig
+use bote#receive
+use bote#send
 
 // ---------------------------------------------------------------------------
 // Service
@@ -21,6 +22,7 @@ service OrderService {
     operations: [
         PublishOrder
         PublishOrderFulfilled
+        ConsumeOrders
     ]
 }
 
@@ -28,7 +30,7 @@ service OrderService {
 // Orders topic
 // ---------------------------------------------------------------------------
 /// Publish an order event to the orders topic.
-@kafkaProducer
+@send
 @kafkaTopic(name: "orders")
 @kafkaTopicConfig(
     partitions: 12
@@ -68,10 +70,17 @@ enum OrderStatus {
 // Order-fulfilled topic (compacted — only latest state per order key matters)
 // ---------------------------------------------------------------------------
 /// Publish an order-fulfilled event.
-@kafkaProducer
+@send
 @kafkaTopic(name: "order-fulfilled", compacted: true)
 operation PublishOrderFulfilled {
     input: OrderFulfilledEvent
+}
+
+/// Receive order events from the orders topic.
+@receive
+@kafkaTopic(name: "orders")
+operation ConsumeOrders {
+    output: OrderEvent
 }
 
 structure OrderFulfilledEvent {
