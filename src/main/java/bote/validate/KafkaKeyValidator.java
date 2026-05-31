@@ -24,11 +24,11 @@ import java.util.stream.Collectors;
  * determines which partition it is routed to. Having more than one key
  * member is ambiguous and is therefore an error.
  *
- * <p>Only structures used as inputs of @kafkaProducer operations are checked.
+ * <p>Only structures used as inputs of @send operations are checked.
  */
 public final class KafkaKeyValidator extends AbstractValidator {
 
-    private static final ShapeId KAFKA_PRODUCER = ShapeId.from("bote#kafkaProducer");
+    private static final ShapeId SEND = ShapeId.from("bote#send");
     private static final ShapeId KAFKA_KEY = ShapeId.from("bote#kafkaKey");
 
     @Override
@@ -38,7 +38,7 @@ public final class KafkaKeyValidator extends AbstractValidator {
         Set<ShapeId> messageStructures = new HashSet<>();
 
         for (OperationShape operation : model.getOperationShapes()) {
-            if (operation.hasTrait(KAFKA_PRODUCER)) {
+            if (operation.hasTrait(SEND)) {
                 operation.getInput().ifPresent(messageStructures::add);
             }
         }

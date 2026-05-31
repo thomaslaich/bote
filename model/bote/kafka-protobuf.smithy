@@ -25,7 +25,8 @@ use smithy.api#protocolDefinition
 @protocolDefinition(
     traits: [
         bote#kafkaTopic
-        bote#kafkaProducer
+        bote#send
+        bote#receive
         bote#kafkaKey
         bote#kafkaHeader
         alloy.proto#protoIndex

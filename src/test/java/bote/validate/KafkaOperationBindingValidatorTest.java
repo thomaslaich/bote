@@ -15,7 +15,7 @@ class KafkaOperationBindingValidatorTest {
             $version: "2"
             namespace test
             use bote#kafkaJson
-            use bote#kafkaProducer
+            use bote#send
             use bote#kafkaTopic
 
             @kafkaJson
@@ -35,7 +35,7 @@ class KafkaOperationBindingValidatorTest {
     @Test
     void producerWithTopicIsValid() {
         String model = PREAMBLE.formatted("PublishOrder") + """
-                @kafkaProducer
+                @send
                 @kafkaTopic(name: "orders")
                 operation PublishOrder { input: Payload }
                 structure Payload { value: String }
@@ -46,7 +46,7 @@ class KafkaOperationBindingValidatorTest {
     @Test
     void producerWithoutTopicIsError() {
         String model = PREAMBLE.formatted("PublishOrder") + """
-                @kafkaProducer
+                @send
                 operation PublishOrder { input: Payload }
                 structure Payload { value: String }
                 """;
@@ -56,7 +56,7 @@ class KafkaOperationBindingValidatorTest {
     @Test
     void producerWithoutInputIsError() {
         String model = PREAMBLE.formatted("PublishOrder") + """
-                @kafkaProducer
+                @send
                 @kafkaTopic(name: "orders")
                 operation PublishOrder {}
                 """;
