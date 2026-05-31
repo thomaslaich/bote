@@ -16,12 +16,15 @@ Three Kafka protocol traits, each modelling a different serialization format:
 
 Supporting traits applied at operation and member level:
 
+- `@send` — marks an operation as sending messages to a topic (must declare `input`)
+- `@receive` — marks an operation as receiving messages from a topic (must declare `output`)
 - `@kafkaTopic` — binds an operation to a named Kafka topic (with optional log compaction)
-- `@kafkaProducer` — marks an operation as a producer
 - `@kafkaKey` — marks a structure member as the Kafka message key
 - `@kafkaHeader` — maps a structure member to a Kafka message header
 - `@kafkaTopicConfig` — captures infrastructure config (partitions, replication factor, retention, etc.)
 - `@avroCompatibility` — declares the schema compatibility mode for a topic
+
+`@send` and `@receive` follow [AsyncAPI](https://www.asyncapi.com/)'s send/receive vocabulary and are intentionally broker-agnostic — the protocol trait (`@kafkaJson`, `@kafkaAvro`, etc.) carries the Kafka-specific semantics.
 
 ## Example
 
@@ -32,19 +35,26 @@ namespace example
 
 use bote#kafkaJson
 use bote#kafkaTopic
-use bote#kafkaProducer
+use bote#send
+use bote#receive
 use bote#kafkaKey
 use bote#kafkaHeader
 
 @kafkaJson
 service OrderService {
-    operations: [PublishOrder]
+    operations: [PublishOrder, ConsumeOrders]
 }
 
-@kafkaProducer
+@send
 @kafkaTopic(name: "orders")
 operation PublishOrder {
     input: OrderEvent
+}
+
+@receive
+@kafkaTopic(name: "orders")
+operation ConsumeOrders {
+    output: OrderEvent
 }
 
 structure OrderEvent {
@@ -59,13 +69,15 @@ structure OrderEvent {
 }
 ```
 
+The producer contract is owned by the service that publishes. Consumer services in other repos depend on this JAR and define their own `@receive` operations against the same topic, referencing the shared message type — the same pattern as an HTTP client depending on a server's Smithy model.
+
 ## Build
 
 Requires Java 21. A [devenv](https://devenv.sh) environment is provided.
 
 ```shell
-./gradlew build
-./gradlew publishToMavenLocal
+gradle build
+gradle publishToMavenLocal
 ```
 
 ## Coordinates
