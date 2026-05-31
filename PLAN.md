@@ -1,4 +1,4 @@
-# legierung — Smithy Protocol Extensions for Kafka
+# bote — Smithy Protocol Extensions for Kafka
 
 ## Vision
 
@@ -91,11 +91,11 @@ $version: "2"
 
 namespace com.example
 
-use legierung#kafkaJson
-use legierung#kafkaTopic
-use legierung#kafkaProducer
-use legierung#kafkaConsumer
-use legierung#kafkaKey
+use bote#kafkaJson
+use bote#kafkaTopic
+use bote#kafkaProducer
+use bote#kafkaConsumer
+use bote#kafkaKey
 
 @kafkaJson
 service OrderService {
@@ -161,7 +161,7 @@ Rules to enforce at model-build time:
 
 - **Build system**: Gradle with `software.amazon.smithy.gradle.smithy-jar` plugin. AWS builds Smithy itself with Gradle; the official plugin is Gradle-first. sbt is only warranted for Scala codegen projects (Alloy's case); Mill has insufficient Smithy ecosystem support.
 - **Dev environment**: devenv (Nix) — toolchain declared in `devenv.nix`, currently Java 21 + Gradle.
-- **Namespace**: `legierung#`
+- **Namespace**: `bote#`
 
 ## Decisions (continued)
 
