@@ -1,20 +1,29 @@
 plugins {
     `java-library`
     `maven-publish`
-    id("software.amazon.smithy.gradle.smithy-jar") version "1.4.0"
 }
 
 repositories {
     mavenCentral()
 }
 
+val smithyVersion = "1.69.0"
+
 dependencies {
-    implementation("com.disneystreaming.alloy:alloy-core:0.3.39")
-    compileOnly("software.amazon.smithy:smithy-model:1.69.0")
-    testImplementation("software.amazon.smithy:smithy-model:1.69.0")
+    // The bote trait library — needed to read the protocol/topic/key traits.
+    api(project(":"))
+
+    api("software.amazon.smithy:smithy-model:$smithyVersion")
+    api("software.amazon.smithy:smithy-build:$smithyVersion")
+    api("software.amazon.smithy:smithy-jsonschema:$smithyVersion")
+
     testImplementation(platform("org.junit:junit-bom:5.11.0"))
     testImplementation("org.junit.jupiter:junit-jupiter")
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
+}
+
+base {
+    archivesName = "bote-asyncapi"
 }
 
 java {
@@ -36,6 +45,7 @@ version = "0.1.0-SNAPSHOT"
 publishing {
     publications {
         create<MavenPublication>("mavenJava") {
+            artifactId = "bote-asyncapi"
             from(components["java"])
         }
     }

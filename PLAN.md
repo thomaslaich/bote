@@ -5,7 +5,7 @@
 A language-agnostic Smithy trait library for Kafka, similar in scope to
 [Disney's Alloy](https://github.com/disneystreaming/alloy). This repo owns
 the *contract* — trait definitions, protocol specs, and validators — not the
-codegen. Codegen consumers (smithy4s, smithy-typescript, etc.) depend on this
+codegen. Codegen consumers (NSmithy, etc.) depend on this
 library to implement the protocol.
 
 ---
