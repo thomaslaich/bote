@@ -12,16 +12,16 @@ import software.amazon.smithy.model.validation.AbstractValidator;
 import software.amazon.smithy.model.validation.ValidationEvent;
 
 /**
- * Validates that every @send or @receive operation is bound to a topic via
+ * Validates that every @send or @receive operation is bound to a channel via
  *
- * @kafkaTopic, that @send declares an input shape, and that @receive declares an output shape
+ * @channel, that @send declares an input shape, and that @receive declares an output shape
  *     containing a @streaming union member.
  */
 public final class KafkaOperationBindingValidator extends AbstractValidator {
 
   private static final ShapeId SEND = ShapeId.from("bote#send");
   private static final ShapeId RECEIVE = ShapeId.from("bote#receive");
-  private static final ShapeId KAFKA_TOPIC = ShapeId.from("bote#kafkaTopic");
+  private static final ShapeId CHANNEL = ShapeId.from("bote#channel");
 
   @Override
   public List<ValidationEvent> validate(Model model) {
@@ -35,8 +35,9 @@ public final class KafkaOperationBindingValidator extends AbstractValidator {
         continue;
       }
 
-      if (!operation.hasTrait(KAFKA_TOPIC)) {
-        events.add(error(operation, "@send/@receive operations must also declare @kafkaTopic."));
+      if (!operation.hasTrait(CHANNEL)) {
+        events.add(
+            error(operation, "@send/@receive operations must bind to a channel via @channel."));
       }
 
       if (isSend && operation.getInput().isEmpty()) {

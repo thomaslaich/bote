@@ -14,7 +14,7 @@ use smithy.api#protocolDefinition
 /// no separate consumer operation. The consumer group is a runtime concern
 /// and must not appear in the model.
 @protocolDefinition(
-    traits: [bote#kafkaTopic, bote#send, bote#receive, bote#kafkaKey, bote#kafkaHeader]
+    traits: [bote#kafkaTopic, bote#channel, bote#send, bote#receive, bote#kafkaKey, bote#kafkaHeader]
 )
 @trait(selector: "service")
 structure kafkaJson {}

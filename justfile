@@ -11,9 +11,14 @@ fmt:
     treefmt .
     gradle smithyFormat
 
-# Render the generated AsyncAPI doc in AsyncAPI Studio (live-reloads on rebuild)
-studio: build
-    npx -y @asyncapi/cli start studio example/build/smithyprojections/example/source/asyncapi/StreetlightsKafka.asyncapi.json
+# Render a generated AsyncAPI doc in AsyncAPI Studio (live-reloads on rebuild).
+# The example emits one doc per service; pass another, e.g. `just studio StreetlightDevice`.
+studio service="StreetlightsBackend": build
+    npx -y @asyncapi/cli start studio example/build/smithyprojections/example/source/asyncapi/{{service}}.asyncapi.json
+
+# Publish bote + bote-asyncapi to the local Maven repo (~/.m2) for local consumers
+publish-local:
+    gradle publishToMavenLocal
 
 # Clean build outputs
 clean:
