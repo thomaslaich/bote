@@ -1,7 +1,4 @@
 { pkgs, lib, ... }:
-let
-  smithy-cli = pkgs.callPackage ./nix/smithy-cli.nix { };
-in
 {
   languages.java = {
     enable = true;
@@ -11,7 +8,6 @@ in
 
   packages = [
     pkgs.just
-    smithy-cli
   ];
 
   treefmt = {
