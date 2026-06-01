@@ -25,6 +25,8 @@ class AsyncApiConverterTest {
       use bote#send
       use bote#receive
 
+      /// Publishes and consumes order events.
+      @title("Order Events API")
       @kafkaJson
       service OrderService {
           version: "2024-01-01"
@@ -75,14 +77,18 @@ class AsyncApiConverterTest {
   }
 
   @Test
-  void emitsAsyncApi30Header() {
+  void emitsAsyncApi31Header() {
     ObjectNode doc = convert();
-    assertEquals("3.0.0", doc.expectStringMember("asyncapi").getValue());
+    assertEquals("3.1.0", doc.expectStringMember("asyncapi").getValue());
     assertEquals("application/json", doc.expectStringMember("defaultContentType").getValue());
+    ObjectNode info = doc.expectObjectMember("info");
+    // info.title comes from @title, not the service shape name.
+    assertEquals("Order Events API", info.expectStringMember("title").getValue());
+    assertEquals("2024-01-01", info.expectStringMember("version").getValue());
+    // info.description comes from the service's @documentation.
     assertEquals(
-        "OrderService", doc.expectObjectMember("info").expectStringMember("title").getValue());
-    assertEquals(
-        "2024-01-01", doc.expectObjectMember("info").expectStringMember("version").getValue());
+        "Publishes and consumes order events.",
+        info.expectStringMember("description").getValue());
   }
 
   @Test

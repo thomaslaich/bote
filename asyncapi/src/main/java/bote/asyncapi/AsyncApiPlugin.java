@@ -6,7 +6,7 @@ import software.amazon.smithy.model.Model;
 import software.amazon.smithy.model.shapes.ServiceShape;
 
 /**
- * A {@link SmithyBuildPlugin} that emits an AsyncAPI 3.0.0 document for every service annotated
+ * A {@link SmithyBuildPlugin} that emits an AsyncAPI 3.1.0 document for every service annotated
  * with a bote Kafka protocol trait ({@code @kafkaJson}, {@code @kafkaAvro}, or
  * {@code @kafkaProtobuf}).
  *
