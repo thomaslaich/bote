@@ -29,7 +29,6 @@ use bote#send
 service StreetlightsKafka {
     version: "1.0.0"
     operations: [
-        PublishLightMeasured
         ReceiveLightMeasured
         TurnOn
         TurnOff
@@ -38,10 +37,18 @@ service StreetlightsKafka {
 }
 
 // ---------------------------------------------------------------------------
-// Lighting-measured topic (produced and consumed)
+// Lighting-measured topic (consumed by this service)
 // ---------------------------------------------------------------------------
-/// Produce environmental lighting measurements for a streetlight.
-@send
+// Like the official Streetlights sample, this document is written from the
+// perspective of the management backend: it *receives* sensor measurements and
+// *sends* commands. The streetlight devices are the counterparties that produce
+// measurements — their @send side lives in their own model, not here.
+//
+// In production the LightMeasured payload below would be owned by that producing
+// model and imported (use ...#LightMeasured); it is defined inline here only to
+// keep the example self-contained.
+/// Inform about environmental lighting conditions of a particular streetlight.
+@receive
 @kafkaTopic(name: "smartylighting.streetlights.lighting.measured")
 @kafkaTopicConfig(
     partitions: 6
@@ -49,13 +56,6 @@ service StreetlightsKafka {
     retentionMs: 604800000
     // 7 days
 )
-operation PublishLightMeasured {
-    input: LightMeasured
-}
-
-/// Inform about environmental lighting conditions of a particular streetlight.
-@receive
-@kafkaTopic(name: "smartylighting.streetlights.lighting.measured")
 operation ReceiveLightMeasured {
     output := {
         measurements: LightMeasuredStream
