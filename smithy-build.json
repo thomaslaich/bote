@@ -1,6 +1,6 @@
 {
     "version": "1.0",
-    "sources": ["model"],
+    "sources": ["model/bote"],
     "projections": {
         "source": {
             "plugins": {
