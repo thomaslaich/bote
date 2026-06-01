@@ -23,9 +23,10 @@ import software.amazon.smithy.model.shapes.ShapeType;
 import software.amazon.smithy.model.shapes.StructureShape;
 import software.amazon.smithy.model.traits.DocumentationTrait;
 import software.amazon.smithy.model.traits.StreamingTrait;
+import software.amazon.smithy.model.traits.TitleTrait;
 
 /**
- * Converts a single bote-annotated Smithy service into an AsyncAPI 3.0.0 document.
+ * Converts a single bote-annotated Smithy service into an AsyncAPI 3.1.0 document.
  *
  * <p>The mapping mirrors AsyncAPI's send/receive vocabulary, which bote's
  * {@code @send}/{@code @receive} traits were modelled on:
@@ -42,7 +43,7 @@ import software.amazon.smithy.model.traits.StreamingTrait;
  */
 final class AsyncApiConverter {
 
-  private static final String ASYNCAPI_VERSION = "3.0.0";
+  private static final String ASYNCAPI_VERSION = "3.1.0";
   private static final String KAFKA_BINDING_VERSION = "0.5.0";
   private static final String SCHEMAS_POINTER = "#/components/schemas";
 
@@ -334,10 +335,15 @@ final class AsyncApiConverter {
 
   private Node buildInfo() {
     String version = service.getVersion().isEmpty() ? "1.0.0" : service.getVersion();
-    return Node.objectNodeBuilder()
-        .withMember("title", service.getId().getName())
-        .withMember("version", version)
-        .build();
+    String title =
+        service
+            .getTrait(TitleTrait.class)
+            .map(TitleTrait::getValue)
+            .orElseGet(() -> service.getId().getName());
+    ObjectNode.Builder info =
+        Node.objectNodeBuilder().withMember("title", title).withMember("version", version);
+    documentation(service).ifPresent(doc -> info.withMember("description", doc));
+    return info.build();
   }
 
   private Node buildOperations() {

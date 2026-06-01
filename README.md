@@ -83,11 +83,11 @@ The producer contract is owned by the service that publishes. Consumer services 
 ## Generating AsyncAPI
 
 The `bote-asyncapi` module provides a Smithy build plugin that emits an
-[AsyncAPI 3.0](https://www.asyncapi.com/) document for every service annotated
+[AsyncAPI 3.1](https://www.asyncapi.com/) document for every service annotated
 with a Kafka protocol trait. AsyncAPI's send/receive vocabulary maps directly
 onto bote's `@send`/`@receive` traits:
 
-| bote                        | AsyncAPI 3.0                                   |
+| bote                        | AsyncAPI 3.1                                   |
 |-----------------------------|------------------------------------------------|
 | Kafka protocol service      | the document (`info`, `defaultContentType`)    |
 | `@kafkaTopic`               | a `channel` with a Kafka channel binding       |
@@ -111,9 +111,29 @@ Enable the `asyncapi` plugin in a consumer's `smithy-build.json`:
 ```
 
 One file is written per service, named `<ServiceName>.asyncapi.json`. The
-`example/` module wires this up end-to-end against the order-events model — run
-`gradle :example:build` and inspect
+`example/` module wires this up end-to-end against a Kafka port of AsyncAPI's
+Streetlights sample — run `gradle :example:build` and inspect
 `example/build/smithyprojections/example/source/asyncapi/`.
+
+### Viewing it
+
+The generated document is plain AsyncAPI 3.1, so any AsyncAPI tooling renders it.
+The quickest is [AsyncAPI Studio](https://studio.asyncapi.com), which gives a
+live, navigable view of the channels, operations, and message schemas:
+
+```shell
+just studio
+```
+
+This builds the example and opens Studio preloaded with the generated spec
+(it live-reloads, so re-running the build refreshes the view). Equivalent to:
+
+```shell
+npx @asyncapi/cli start studio \
+    example/build/smithyprojections/example/source/asyncapi/StreetlightsKafka.asyncapi.json
+```
+
+Requires Node. Scalar is OpenAPI-only and does not render AsyncAPI.
 
 ## Modules
 
