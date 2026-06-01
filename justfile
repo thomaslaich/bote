@@ -7,7 +7,8 @@ build:
     gradle build
 
 # Format all .smithy files
-format:
+fmt:
+    treefmt .
     gradle smithyFormat
 
 # Clean build outputs
