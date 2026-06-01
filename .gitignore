@@ -12,3 +12,6 @@ build/
 
 # Metals (VS Code Scala plugin)
 .metals/
+
+# Eclipse / VS Code Java language server output
+bin/
