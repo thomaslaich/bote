@@ -1,27 +1,35 @@
 package bote.asyncapi;
 
+import java.util.Optional;
 import software.amazon.smithy.build.PluginContext;
+import software.amazon.smithy.build.SmithyBuildException;
 import software.amazon.smithy.build.SmithyBuildPlugin;
 import software.amazon.smithy.model.Model;
+import software.amazon.smithy.model.node.ObjectNode;
 import software.amazon.smithy.model.shapes.ServiceShape;
+import software.amazon.smithy.model.shapes.ShapeId;
 
 /**
- * A {@link SmithyBuildPlugin} that emits an AsyncAPI 3.1.0 document for every service annotated
- * with a bote Kafka protocol trait ({@code @kafkaJson}, {@code @kafkaAvro}, or
- * {@code @kafkaProtobuf}).
+ * A {@link SmithyBuildPlugin} that emits an AsyncAPI 3.1.0 document for services annotated with a
+ * bote Kafka protocol trait ({@code @kafkaJson}, {@code @kafkaAvro}, or {@code @kafkaProtobuf}).
  *
- * <p>Enable it in {@code smithy-build.json}:
+ * <p>Each AsyncAPI document describes a single application, so one file is written per service,
+ * named {@code <ServiceName>.asyncapi.json}.
+ *
+ * <p>By default every Kafka service in the model is documented. Set the optional {@code service}
+ * setting to a service shape ID to target exactly one — the idiomatic way to emit several documents
+ * is then one projection per service (mirroring smithy-openapi):
  *
  * <pre>{@code
  * {
  *     "version": "1.0",
  *     "plugins": {
- *         "asyncapi": {}
+ *         "asyncapi": {
+ *             "service": "smartylighting.device#StreetlightDevice"
+ *         }
  *     }
  * }
  * }</pre>
- *
- * <p>One file is written per service, named {@code <ServiceName>.asyncapi.json}.
  */
 public final class AsyncApiPlugin implements SmithyBuildPlugin {
 
@@ -33,12 +41,28 @@ public final class AsyncApiPlugin implements SmithyBuildPlugin {
   @Override
   public void execute(PluginContext context) {
     Model model = context.getModel();
+    Optional<ShapeId> target =
+        context.getSettings().getStringMember("service").map(n -> ShapeId.from(n.getValue()));
+
+    boolean matched = false;
     for (ServiceShape service : model.getServiceShapes()) {
       if (!AsyncApiConverter.isKafkaService(service)) {
         continue;
       }
-      var document = new AsyncApiConverter(model, service).convert();
+      if (target.isPresent() && !service.getId().equals(target.get())) {
+        continue;
+      }
+      matched = true;
+      ObjectNode document = new AsyncApiConverter(model, service).convert();
       context.getFileManifest().writeJson(service.getId().getName() + ".asyncapi.json", document);
+    }
+
+    if (target.isPresent() && !matched) {
+      throw new SmithyBuildException(
+          "asyncapi: `service` "
+              + target.get()
+              + " is not a Kafka service (one annotated with @kafkaJson, @kafkaAvro, or "
+              + "@kafkaProtobuf) in the model.");
     }
   }
 }

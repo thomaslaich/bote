@@ -17,13 +17,17 @@ class KafkaKeyValidatorTest {
       use bote#kafkaJson
       use bote#send
       use bote#kafkaTopic
+      use bote#channel
       use bote#kafkaKey
 
       @kafkaJson
       service TestService { operations: [Publish] }
 
-      @send
       @kafkaTopic(name: "events")
+      structure Events {}
+
+      @send
+      @channel(Events)
       operation Publish { input: %s }
       """;
 

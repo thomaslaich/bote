@@ -22,6 +22,7 @@ class AsyncApiConverterTest {
       use bote#kafkaTopicConfig
       use bote#kafkaKey
       use bote#kafkaHeader
+      use bote#channel
       use bote#send
       use bote#receive
 
@@ -33,19 +34,26 @@ class AsyncApiConverterTest {
           operations: [PublishOrder, ConsumeOrders, PublishState]
       }
 
-      @send
+      /// The orders topic.
       @kafkaTopic(name: "orders")
       @kafkaTopicConfig(partitions: 12, replicationFactor: 3, minInsyncReplicas: 2)
+      structure OrdersTopic {}
+
+      @kafkaTopic(name: "order-state", compacted: true)
+      structure OrderStateTopic {}
+
+      @send
+      @channel(OrdersTopic)
       operation PublishOrder { input: OrderEvent }
 
       @receive
-      @kafkaTopic(name: "orders")
+      @channel(OrdersTopic)
       operation ConsumeOrders {
           output := { events: OrderEventStream }
       }
 
       @send
-      @kafkaTopic(name: "order-state", compacted: true)
+      @channel(OrderStateTopic)
       operation PublishState { input: OrderState }
 
       @streaming
@@ -108,6 +116,18 @@ class AsyncApiConverterTest {
             .expectNumberMember("min.insync.replicas")
             .getValue()
             .intValue());
+  }
+
+  @Test
+  void mapsChannelDescriptionFromTopicShapeDocs() {
+    // The channel description comes from the @kafkaTopic shape's @documentation.
+    assertEquals(
+        "The orders topic.",
+        convert()
+            .expectObjectMember("channels")
+            .expectObjectMember("orders")
+            .expectStringMember("description")
+            .getValue());
   }
 
   @Test

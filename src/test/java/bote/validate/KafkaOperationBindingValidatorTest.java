@@ -18,11 +18,15 @@ class KafkaOperationBindingValidatorTest {
       use bote#send
       use bote#receive
       use bote#kafkaTopic
+      use bote#channel
 
       @kafkaJson
       service TestService {
           operations: [%s]
       }
+
+      @kafkaTopic(name: "orders")
+      structure Orders {}
       """;
 
   private List<ValidationEvent> validate(String model) {
@@ -34,12 +38,12 @@ class KafkaOperationBindingValidatorTest {
   }
 
   @Test
-  void senderWithTopicIsValid() {
+  void senderWithChannelIsValid() {
     String model =
         PREAMBLE.formatted("PublishOrder")
             + """
             @send
-            @kafkaTopic(name: "orders")
+            @channel(Orders)
             operation PublishOrder { input: Payload }
             structure Payload { value: String }
             """;
@@ -47,7 +51,7 @@ class KafkaOperationBindingValidatorTest {
   }
 
   @Test
-  void senderWithoutTopicIsError() {
+  void senderWithoutChannelIsError() {
     String model =
         PREAMBLE.formatted("PublishOrder")
             + """
@@ -64,7 +68,7 @@ class KafkaOperationBindingValidatorTest {
         PREAMBLE.formatted("PublishOrder")
             + """
             @send
-            @kafkaTopic(name: "orders")
+            @channel(Orders)
             operation PublishOrder {}
             """;
     assertTrue(validate(model).stream().anyMatch(e -> e.getSeverity() == Severity.ERROR));
@@ -76,7 +80,7 @@ class KafkaOperationBindingValidatorTest {
         PREAMBLE.formatted("ConsumeOrders")
             + """
             @receive
-            @kafkaTopic(name: "orders")
+            @channel(Orders)
             operation ConsumeOrders {
                 output := { events: OrderEventStream }
             }
@@ -93,7 +97,7 @@ class KafkaOperationBindingValidatorTest {
         PREAMBLE.formatted("ConsumeOrders")
             + """
             @receive
-            @kafkaTopic(name: "orders")
+            @channel(Orders)
             operation ConsumeOrders {}
             """;
     assertTrue(validate(model).stream().anyMatch(e -> e.getSeverity() == Severity.ERROR));
@@ -105,7 +109,7 @@ class KafkaOperationBindingValidatorTest {
         PREAMBLE.formatted("ConsumeOrders")
             + """
             @receive
-            @kafkaTopic(name: "orders")
+            @channel(Orders)
             operation ConsumeOrders { output: Payload }
             structure Payload { value: String }
             """;
@@ -113,7 +117,7 @@ class KafkaOperationBindingValidatorTest {
   }
 
   @Test
-  void receiverWithoutTopicIsError() {
+  void receiverWithoutChannelIsError() {
     String model =
         PREAMBLE.formatted("ConsumeOrders")
             + """

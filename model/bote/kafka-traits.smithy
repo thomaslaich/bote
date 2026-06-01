@@ -2,8 +2,16 @@ $version: "2"
 
 namespace bote
 
-/// Binds an operation to a Kafka topic.
-@trait(selector: "operation")
+/// Declares a Kafka topic — an AsyncAPI channel — as a first-class, shareable shape.
+///
+/// Apply to an empty marker structure; operations bind to it with @channel.
+/// Modelling the topic as a shape (rather than repeating a name string on every
+/// operation) lets the topic — its name, compaction, partitions and retention —
+/// be defined once and distributed as part of the contract, exactly like the
+/// message payload types. Producer and consumer services in different repos then
+/// reference the same channel shape, so their AsyncAPI channel sections come out
+/// identical by construction.
+@trait(selector: "structure")
 structure kafkaTopic {
     /// The Kafka topic name.
     @required
@@ -14,6 +22,15 @@ structure kafkaTopic {
     /// Defaults to false.
     compacted: Boolean
 }
+
+/// Binds an operation to the topic (channel) it sends to or receives from.
+///
+/// The referenced shape must be a structure carrying @kafkaTopic. This is the
+/// AsyncAPI relationship "operation -> channel": a single operation acts on a
+/// single channel.
+@trait(selector: "operation")
+@idRef(failWhenMissing: true, selector: "[trait|bote#kafkaTopic]")
+string channel
 
 /// Marks an operation as sending messages to a Kafka topic.
 /// The operation input is the message value written to the topic.
