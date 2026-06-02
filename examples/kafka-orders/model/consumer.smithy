@@ -7,8 +7,8 @@ $version: "2"
 // is the consumer's.
 namespace orders.consumer
 
-use bote#asyncApi
 use bote#channel
+use bote#messaging
 use bote#receive
 use orders.shared#OrderCancelled
 use orders.shared#OrderShipped
@@ -16,7 +16,7 @@ use orders.shared#OrdersTopic
 
 /// A fulfilment dashboard: tracks orders once they leave "placed".
 @title("Fulfilment Dashboard API")
-@asyncApi
+@messaging
 service FulfilmentDashboard {
     version: "1.0.0"
     operations: [

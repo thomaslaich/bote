@@ -5,8 +5,8 @@ $version: "2"
 // @channel, exactly like the Kafka example; only the address trait differs.
 namespace chat
 
-use bote#asyncApi
 use bote#channel
+use bote#messaging
 use bote#receive
 use bote#redisStream
 use bote#send
@@ -17,7 +17,7 @@ structure ChatMessagesStream {}
 
 /// A chat producer: posts messages to the chat stream.
 @title("Chat Producer API")
-@asyncApi
+@messaging
 service ChatProducer {
     version: "1.0.0"
     operations: [
@@ -27,7 +27,7 @@ service ChatProducer {
 
 /// A chat consumer: reads messages from the chat stream.
 @title("Chat Consumer API")
-@asyncApi
+@messaging
 service ChatConsumer {
     version: "1.0.0"
     operations: [

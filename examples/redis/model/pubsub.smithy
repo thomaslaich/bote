@@ -6,8 +6,8 @@ $version: "2"
 // channel-level docs, which is the payoff of keeping it a shape.
 namespace presence
 
-use bote#asyncApi
 use bote#channel
+use bote#messaging
 use bote#receive
 use bote#redisChannel
 use bote#send
@@ -18,7 +18,7 @@ structure PresenceChannel {}
 
 /// Publishes user presence updates.
 @title("Presence Publisher API")
-@asyncApi
+@messaging
 service PresencePublisher {
     version: "1.0.0"
     operations: [
@@ -28,7 +28,7 @@ service PresencePublisher {
 
 /// Subscribes to user presence updates.
 @title("Presence Subscriber API")
-@asyncApi
+@messaging
 service PresenceSubscriber {
     version: "1.0.0"
     operations: [

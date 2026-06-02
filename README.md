@@ -10,11 +10,11 @@ A reference **AsyncAPI generator** ships alongside the contract in a separate co
 
 A broker-agnostic core plus per-broker channel traits.
 
-**Application document** — one trait per service, describing an AsyncAPI application view:
+**Application contract** — one trait per service, describing a messaging application view:
 
-| Trait       | Meaning                                      | Status  |
-|-------------|----------------------------------------------|---------|
-| `@asyncApi` | Generate one AsyncAPI document for a service | Defined |
+| Trait        | Meaning                                   | Status  |
+|--------------|-------------------------------------------|---------|
+| `@messaging` | Application-level messaging contract     | Defined |
 
 **Legacy protocol traits** — still supported as service markers, but no longer required for mixed-broker documents:
 
@@ -93,14 +93,14 @@ $version: "2"
 namespace example.producer
 
 use bote#channel
-use bote#asyncApi
+use bote#messaging
 use bote#send
 use example.shared#OrderPlaced
 use example.shared#OrderShipped
 use example.shared#OrdersTopic
 
 // The producer's perspective: emits individual event types to the channel.
-@asyncApi
+@messaging
 service OrderService {
     operations: [PublishOrderPlaced, PublishOrderShipped]
 }
@@ -127,13 +127,13 @@ $version: "2"
 namespace example.consumer
 
 use bote#channel
-use bote#asyncApi
+use bote#messaging
 use bote#receive
 use example.shared#OrderShipped
 use example.shared#OrdersTopic
 
 // The consumer's perspective: subscribes to the subset it cares about.
-@asyncApi
+@messaging
 service FulfilmentDashboard {
     operations: [ConsumeOrderUpdates]
 }
@@ -158,12 +158,12 @@ The producer and consumer can live in different repos while depending on the sam
 
 The `smithy-asyncapi-codegen` module provides a Smithy build plugin that emits an
 [AsyncAPI 3.1](https://www.asyncapi.com/) document per service annotated with
-`@asyncApi` or a legacy bote protocol trait. The send/receive vocabulary maps directly
+`@messaging` or a legacy bote protocol trait. The send/receive vocabulary maps directly
 onto bote's `@send`/`@receive`:
 
 | bote                          | AsyncAPI 3.1                                    |
 |-------------------------------|-------------------------------------------------|
-| `@asyncApi` service           | the document (`info`, `defaultContentType`)     |
+| `@messaging` service           | the document (`info`, `defaultContentType`)     |
 | channel shape (`@kafkaTopic` / `@redisStream` / `@redisChannel`) | a `channel` |
 | send `input` / receive subscription | the channel's `messages` and operation's `messages` |
 | channel shape `@documentation` | the channel `description`                      |
