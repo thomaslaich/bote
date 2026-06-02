@@ -27,7 +27,7 @@ public final class OperationBindingValidator extends AbstractValidator {
   private static final ShapeId CHANNEL = ShapeId.from("bote#channel");
   private static final List<ShapeId> PROTOCOLS =
       List.of(
-          ShapeId.from("bote#asyncApi"),
+          ShapeId.from("bote#messaging"),
           ShapeId.from("bote#kafkaJson"),
           ShapeId.from("bote#kafkaAvro"),
           ShapeId.from("bote#kafkaProtobuf"),

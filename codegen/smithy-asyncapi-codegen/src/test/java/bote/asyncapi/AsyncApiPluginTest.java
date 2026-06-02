@@ -21,7 +21,7 @@ class AsyncApiPluginTest {
       """
       $version: "2"
       namespace test
-      use bote#asyncApi
+      use bote#messaging
       use bote#kafkaTopic
       use bote#channel
       use bote#kafkaKey
@@ -33,10 +33,10 @@ class AsyncApiPluginTest {
       @kafkaTopic(name: "b")
       structure BTopic {}
 
-      @asyncApi
+      @messaging
       service A { operations: [PubA] }
 
-      @asyncApi
+      @messaging
       service B { operations: [PubB] }
 
       @send

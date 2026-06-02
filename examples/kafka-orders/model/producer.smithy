@@ -5,8 +5,8 @@ $version: "2"
 // A producer never touches a @streaming union; it sends single events.
 namespace orders.producer
 
-use bote#asyncApi
 use bote#channel
+use bote#messaging
 use bote#send
 use orders.shared#OrderCancelled
 use orders.shared#OrderPlaced
@@ -15,7 +15,7 @@ use orders.shared#OrdersTopic
 
 /// The order service: emits order lifecycle events to the orders topic.
 @title("Order Service API")
-@asyncApi
+@messaging
 service OrderService {
     version: "1.0.0"
     operations: [

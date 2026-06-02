@@ -17,7 +17,7 @@ class AsyncApiConverterTest {
       $version: "2"
       namespace test
 
-      use bote#asyncApi
+      use bote#messaging
       use bote#kafkaTopic
       use bote#kafkaTopicConfig
       use bote#kafkaKey
@@ -29,7 +29,7 @@ class AsyncApiConverterTest {
 
       /// Publishes and consumes order events.
       @title("Order Events API")
-      @asyncApi
+      @messaging
       service OrderService {
           version: "2024-01-01"
           operations: [PublishOrder, ConsumeOrders, PublishState, PublishPresence]

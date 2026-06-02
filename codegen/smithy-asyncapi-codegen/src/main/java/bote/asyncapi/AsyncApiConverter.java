@@ -33,7 +33,7 @@ import software.amazon.smithy.model.traits.TitleTrait;
  * {@code @send}/{@code @receive} traits were modelled on:
  *
  * <ul>
- *   <li>{@code @asyncApi} service -&gt; the AsyncAPI document
+ *   <li>{@code @messaging} service -&gt; the AsyncAPI document
  *   <li>{@code @kafkaTopic}/{@code @redisStream}/{@code @redisChannel} -&gt; a channel
  *   <li>{@code @send}/{@code @receive} -&gt; an operation with action send/receive
  *   <li>each message value structure -&gt; a component message + JSON Schema payload
@@ -48,7 +48,7 @@ final class AsyncApiConverter {
   private static final String KAFKA_BINDING_VERSION = "0.5.0";
   private static final String SCHEMAS_POINTER = "#/components/schemas";
 
-  private static final ShapeId ASYNC_API = ShapeId.from("bote#asyncApi");
+  private static final ShapeId MESSAGING = ShapeId.from("bote#messaging");
   private static final ShapeId KAFKA_JSON = ShapeId.from("bote#kafkaJson");
   private static final ShapeId KAFKA_AVRO = ShapeId.from("bote#kafkaAvro");
   private static final ShapeId KAFKA_PROTOBUF = ShapeId.from("bote#kafkaProtobuf");
@@ -83,7 +83,7 @@ final class AsyncApiConverter {
 
   /** Returns true if the service carries any bote messaging protocol trait. */
   static boolean isBoteService(ServiceShape service) {
-    return service.hasTrait(ASYNC_API) || isKafkaService(service) || isRedisService(service);
+    return service.hasTrait(MESSAGING) || isKafkaService(service) || isRedisService(service);
   }
 
   private static boolean isRedisService(ServiceShape service) {
@@ -100,7 +100,7 @@ final class AsyncApiConverter {
   private static String contentTypeFor(ServiceShape service) {
     Optional<String> defaultContentType =
         service
-            .findTrait(ASYNC_API)
+            .findTrait(MESSAGING)
             .map(t -> t.toNode().expectObjectNode())
             .flatMap(n -> n.getStringMember("defaultContentType"))
             .map(n -> n.getValue());

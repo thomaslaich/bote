@@ -6,13 +6,15 @@ namespace bote
 // they describe the *shape* of an event-driven contract (direction of flow, and
 // which channel an operation acts on). Each broker supplies its own address/config
 // trait on the channel structure (@kafkaTopic, @redisStream, @redisChannel, ...).
-/// Marks a service as an application-level AsyncAPI document.
+/// Marks a service as an application-level messaging contract.
 ///
-/// Operations may bind to channels from different brokers. The broker-specific
-/// address/config traits live on the channel shapes, not on the service.
+/// Operations may bind to channels from different brokers. Code generators can
+/// emit this service as a single application view (for example, an AsyncAPI
+/// document). The broker-specific address/config traits live on the channel
+/// shapes, not on the service.
 @trait(selector: "service")
-structure asyncApi {
-    /// The AsyncAPI document's default content type.
+structure messaging {
+    /// The generated document's default content type.
     /// Omit for application/json.
     defaultContentType: String
 }
