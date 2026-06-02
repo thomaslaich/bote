@@ -6,10 +6,7 @@ use smithy.api#range
 
 /// Declares infrastructure configuration for a Kafka topic.
 ///
-/// Applied to a @kafkaTopic structure (the channel). Because the topic is a
-/// single shared shape, its configuration is declared exactly once — there is
-/// no need to repeat it across operations or validate cross-operation
-/// consistency.
+/// Applied to the operation that declares the topic.
 ///
 /// These values are the authoritative specification of the topic's durability
 /// and retention contract. Code generators can use them to drive topic

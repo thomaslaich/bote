@@ -6,7 +6,7 @@ use smithy.api#protocolDefinition
 
 /// A Smithy protocol for Kafka using Protocol Buffers serialization.
 ///
-/// Producers exchange protobuf-encoded messages. The Smithy shape graph is
+/// Applications exchange protobuf-encoded messages. The Smithy shape graph is
 /// mapped to .proto message definitions by code generators that consume this
 /// protocol.
 ///
@@ -19,15 +19,16 @@ use smithy.api#protocolDefinition
 /// the registry URL and credentials are runtime configuration and must
 /// not appear in the model.
 ///
-/// Consumer scaffolding is generated from the producer model — there is
-/// no separate consumer operation. The consumer group is a runtime concern
-/// and must not appear in the model.
+/// Operations must use @invocation or @subscription and declare their topic with
+/// @kafkaTopic.
 @protocolDefinition(
     traits: [
         bote#kafkaTopic
-        bote#channel
-        bote#send
-        bote#receive
+        bote#invocation
+        bote#subscription
+        bote#event
+        bote#command
+        bote#reply
         bote#kafkaKey
         bote#kafkaHeader
         alloy.proto#protoIndex

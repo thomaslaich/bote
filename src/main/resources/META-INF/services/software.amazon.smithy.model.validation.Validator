@@ -1,3 +1,2 @@
 bote.validate.OperationBindingValidator
 bote.validate.KafkaKeyValidator
-bote.validate.KafkaTopicNameValidator

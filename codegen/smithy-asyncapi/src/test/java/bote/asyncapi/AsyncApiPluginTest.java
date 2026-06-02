@@ -22,34 +22,28 @@ class AsyncApiPluginTest {
       """
       $version: "2"
       namespace test
-      use bote#kafkaJson
-      use bote#kafkaTopic
-      use bote#channel
-      use bote#kafkaKey
-      use bote#send
-
-      @kafkaTopic(name: "a")
-      structure ATopic {}
-
-      @kafkaTopic(name: "b")
-      structure BTopic {}
-
+use bote#kafkaJson
+use bote#kafkaTopic
+use bote#kafkaKey
+use bote#invocation
+use bote#command
       @kafkaJson
       service A { operations: [PubA] }
 
-      @kafkaJson
+@kafkaJson
       service B { operations: [PubB] }
 
-      @send
-      @channel(ATopic)
+@invocation
+@kafkaTopic(name: "a")
       operation PubA { input: Payload }
 
-      @send
-      @channel(BTopic)
+@invocation
+@kafkaTopic(name: "b")
       operation PubB { input: Payload }
 
+@command
       structure Payload {
-          @kafkaKey
+@kafkaKey
           id: String
       }
       """;
@@ -67,18 +61,18 @@ class AsyncApiPluginTest {
         .collect(Collectors.toSet());
   }
 
-  @Test
+@Test
   void noSettingDocumentsEveryKafkaService() {
     assertEquals(Set.of("A.asyncapi.json", "B.asyncapi.json"), run(Node.objectNode()));
   }
 
-  @Test
+@Test
   void serviceSettingTargetsOneService() {
     Set<String> files = run(Node.objectNodeBuilder().withMember("service", "test#A").build());
     assertEquals(Set.of("A.asyncapi.json"), files);
   }
 
-  @Test
+@Test
   void servicesSettingAggregatesOneDocument() {
     ObjectNode settings =
         Node.objectNodeBuilder()
@@ -90,7 +84,7 @@ class AsyncApiPluginTest {
     assertEquals(Set.of("Grouped.asyncapi.json"), run(settings));
   }
 
-  @Test
+@Test
   void unknownServiceSettingFails() {
     SmithyBuildException e =
         assertThrows(

@@ -17,77 +17,81 @@ class AsyncApiConverterTest {
       $version: "2"
       namespace test
 
-      use bote#kafkaJson
-      use bote#kafkaTopic
-      use bote#kafkaTopicConfig
-      use bote#kafkaKey
-      use bote#kafkaHeader
-      use bote#redisPubSubJson
+use bote#kafkaJson
+use bote#kafkaTopic
+use bote#kafkaTopicConfig
+use bote#kafkaKey
+use bote#kafkaHeader
+use bote#redisPubSubJson
       use bote#redisChannel
-      use bote#channel
-      use bote#send
-      use bote#receive
+      use bote#invocation
+use bote#subscription
+use bote#command
+use bote#event
 
-      /// Publishes and consumes order events.
-      @title("Order Events API")
-      @kafkaJson
+      /// Invokes order commands and subscribes to order events.
+@title("Order Events API")
+@kafkaJson
       service OrderService {
           version: "2024-01-01"
           operations: [PublishOrder, ConsumeOrders, PublishState]
       }
 
-      @redisPubSubJson
+@redisPubSubJson
       service PresenceService {
           version: "2024-01-01"
-          operations: [PublishPresence]
+          operations: [SetPresence]
       }
 
-      /// The orders topic.
+      @invocation
       @kafkaTopic(name: "orders")
       @kafkaTopicConfig(partitions: 12, replicationFactor: 3, minInsyncReplicas: 2)
-      structure OrdersTopic {}
+      operation PublishOrder { input: SubmitOrder }
 
-      @kafkaTopic(name: "order-state", compacted: true)
-      structure OrderStateTopic {}
-
-      @redisChannel(name: "presence")
-      structure PresenceChannel {}
-
-      @send
-      @channel(OrdersTopic)
-      operation PublishOrder { input: OrderEvent }
-
-      @receive
-      @channel(OrdersTopic)
+      @subscription
+      @kafkaTopic(name: "orders")
+      @kafkaTopicConfig(partitions: 12, replicationFactor: 3, minInsyncReplicas: 2)
       operation ConsumeOrders {
           output := { events: OrderEventStream }
       }
 
-      @send
-      @channel(OrderStateTopic)
-      operation PublishState { input: OrderState }
+@invocation
+@kafkaTopic(name: "order-state", compacted: true)
+      operation PublishState { input: SetOrderState }
 
-      @send
-      @channel(PresenceChannel)
-      operation PublishPresence { input: PresenceUpdate }
+@invocation
+@redisChannel(name: "presence")
+      operation SetPresence { input: SetPresenceCommand }
 
-      @streaming
+@streaming
       union OrderEventStream { orderEvent: OrderEvent }
 
-      structure OrderEvent {
-          @kafkaKey
+@command
+      structure SubmitOrder {
+@kafkaKey
           orderId: String
-          @kafkaHeader(name: "x-trace-id")
+@kafkaHeader(name: "x-trace-id")
           traceId: String
           totalCents: Integer
       }
 
-      structure OrderState {
-          @kafkaKey
+@event
+      structure OrderEvent {
+@kafkaKey
+          orderId: String
+@kafkaHeader(name: "x-trace-id")
+          traceId: String
+          totalCents: Integer
+      }
+
+@command
+      structure SetOrderState {
+@kafkaKey
           orderId: String
       }
 
-      structure PresenceUpdate {
+@command
+      structure SetPresenceCommand {
           userId: String
           status: String
       }
@@ -119,7 +123,7 @@ class AsyncApiConverterTest {
         .convert();
   }
 
-  @Test
+@Test
   void emitsAsyncApi31Header() {
     ObjectNode doc = convert();
     assertEquals("3.1.0", doc.expectStringMember("asyncapi").getValue());
@@ -130,10 +134,11 @@ class AsyncApiConverterTest {
     assertEquals("2024-01-01", info.expectStringMember("version").getValue());
     // info.description comes from the service's @documentation.
     assertEquals(
-        "Publishes and consumes order events.", info.expectStringMember("description").getValue());
+        "Invokes order commands and subscribes to order events.",
+        info.expectStringMember("description").getValue());
   }
 
-  @Test
+@Test
   void mapsTopicConfigToKafkaChannelBinding() {
     ObjectNode kafka =
         convert()
@@ -152,19 +157,7 @@ class AsyncApiConverterTest {
             .intValue());
   }
 
-  @Test
-  void mapsChannelDescriptionFromTopicShapeDocs() {
-    // The channel description comes from the @kafkaTopic shape's @documentation.
-    assertEquals(
-        "The orders topic.",
-        convert()
-            .expectObjectMember("channels")
-            .expectObjectMember("orders")
-            .expectStringMember("description")
-            .getValue());
-  }
-
-  @Test
+@Test
   void mapsCompactionToCleanupPolicy() {
     ObjectNode topicConfig =
         convert()
@@ -178,7 +171,7 @@ class AsyncApiConverterTest {
         topicConfig.expectArrayMember("cleanup.policy").get(0).get().expectStringNode().getValue());
   }
 
-  @Test
+@Test
   void groupedServicesCanContainKafkaAndRedisChannels() {
     ObjectNode channels = convertGrouped().expectObjectMember("channels");
     assertTrue(channels.getMember("orders").isPresent());
@@ -188,17 +181,17 @@ class AsyncApiConverterTest {
         channels
             .expectObjectMember("presence")
             .expectObjectMember("messages")
-            .getMember("PresenceUpdate")
+            .getMember("SetPresenceCommand")
             .isPresent());
     assertTrue(
         convertGrouped()
             .expectObjectMember("components")
             .expectObjectMember("schemas")
-            .getMember("PresenceUpdate")
+            .getMember("SetPresenceCommand")
             .isPresent());
   }
 
-  @Test
+@Test
   void mapsSendAndReceiveActions() {
     ObjectNode operations = convert().expectObjectMember("operations");
     assertEquals(
@@ -209,8 +202,8 @@ class AsyncApiConverterTest {
         operations.expectObjectMember("ConsumeOrders").expectStringMember("action").getValue());
   }
 
-  @Test
-  void sendAndReceiveShareOneChannelAndMessage() {
+@Test
+  void invocationsAndSubscriptionsShareOneChannel() {
     ObjectNode doc = convert();
     // A single "orders" channel is produced even though two operations bind to it.
     ObjectNode channels = doc.expectObjectMember("channels");
@@ -219,10 +212,16 @@ class AsyncApiConverterTest {
         channels
             .expectObjectMember("orders")
             .expectObjectMember("messages")
+            .getMember("SubmitOrder")
+            .isPresent());
+    assertTrue(
+        channels
+            .expectObjectMember("orders")
+            .expectObjectMember("messages")
             .getMember("OrderEvent")
             .isPresent());
 
-    // The receive operation references the same channel message as the send operation.
+    // The subscription operation references the event message on the same channel.
     String receiveRef =
         doc.expectObjectMember("operations")
             .expectObjectMember("ConsumeOrders")
@@ -235,16 +234,16 @@ class AsyncApiConverterTest {
     assertEquals("#/channels/orders/messages/OrderEvent", receiveRef);
   }
 
-  @Test
+@Test
   void buildsMessageWithKeyHeaderAndPayloadRef() {
     ObjectNode message =
         convert()
             .expectObjectMember("components")
             .expectObjectMember("messages")
-            .expectObjectMember("OrderEvent");
+            .expectObjectMember("SubmitOrder");
 
     assertEquals(
-        "#/components/schemas/OrderEvent",
+        "#/components/schemas/SubmitOrder",
         message.expectObjectMember("payload").expectStringMember("$ref").getValue());
     assertEquals(
         "string",
@@ -262,11 +261,12 @@ class AsyncApiConverterTest {
             .isPresent());
   }
 
-  @Test
+@Test
   void schemasContainMessageClosureButNotStreamingWrapper() {
     ObjectNode schemas = convert().expectObjectMember("components").expectObjectMember("schemas");
+    assertTrue(schemas.getMember("SubmitOrder").isPresent());
     assertTrue(schemas.getMember("OrderEvent").isPresent());
-    assertTrue(schemas.getMember("OrderState").isPresent());
+    assertTrue(schemas.getMember("SetOrderState").isPresent());
     // The @streaming union wrapper is plumbing, not a message payload.
     assertFalse(schemas.getMember("OrderEventStream").isPresent());
     // Integer renders as JSON Schema integer, not number.

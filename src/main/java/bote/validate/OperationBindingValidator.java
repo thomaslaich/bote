@@ -13,18 +13,19 @@ import software.amazon.smithy.model.validation.AbstractValidator;
 import software.amazon.smithy.model.validation.ValidationEvent;
 
 /**
- * Validates that every @send or @receive operation of a bote messaging service binds to a channel
- * via @channel, that @send declares an input shape, and that @receive declares an output shape
- * containing a @streaming union member (the consumer's subscription).
- *
- * <p>Uniform across brokers: Kafka and Redis both bind operations to a channel shape with @channel,
- * so a single validator covers them.
+ * Validates that every messaging operation of a bote service binds to a channel, that invocations
+ * use command input and optional reply output shapes, and that subscriptions stream event shapes.
  */
 public final class OperationBindingValidator extends AbstractValidator {
 
-  private static final ShapeId SEND = ShapeId.from("bote#send");
-  private static final ShapeId RECEIVE = ShapeId.from("bote#receive");
-  private static final ShapeId CHANNEL = ShapeId.from("bote#channel");
+  private static final ShapeId INVOCATION = ShapeId.from("bote#invocation");
+  private static final ShapeId SUBSCRIPTION = ShapeId.from("bote#subscription");
+  private static final ShapeId KAFKA_TOPIC = ShapeId.from("bote#kafkaTopic");
+  private static final ShapeId REDIS_STREAM = ShapeId.from("bote#redisStream");
+  private static final ShapeId REDIS_CHANNEL = ShapeId.from("bote#redisChannel");
+  private static final ShapeId COMMAND = ShapeId.from("bote#command");
+  private static final ShapeId EVENT = ShapeId.from("bote#event");
+  private static final ShapeId REPLY = ShapeId.from("bote#reply");
   private static final List<ShapeId> PROTOCOLS =
       List.of(
           ShapeId.from("bote#kafkaJson"),
@@ -51,32 +52,43 @@ public final class OperationBindingValidator extends AbstractValidator {
 
   private void validateOperation(
       Model model, OperationShape operation, List<ValidationEvent> events) {
-    boolean isSend = operation.hasTrait(SEND);
-    boolean isReceive = operation.hasTrait(RECEIVE);
+    boolean isInvocation = operation.hasTrait(INVOCATION);
+    boolean isSubscription = operation.hasTrait(SUBSCRIPTION);
 
-    if (!isSend && !isReceive) {
+    if (!isInvocation && !isSubscription) {
       return;
     }
 
-    if (!operation.hasTrait(CHANNEL)) {
-      events.add(
-          error(operation, "@send/@receive operations must bind to a channel via @channel."));
-    }
-
-    if (isSend && operation.getInput().isEmpty()) {
+    if (!operation.hasTrait(KAFKA_TOPIC)
+        && !operation.hasTrait(REDIS_STREAM)
+        && !operation.hasTrait(REDIS_CHANNEL)) {
       events.add(
           error(
               operation,
-              "@send operations must define an input shape "
-                  + "(the message value written to the channel)."));
+              "Messaging operations must declare a broker address trait."));
     }
 
-    if (isReceive) {
+    if (isInvocation) {
+      if (operation.getInput().isEmpty()) {
+        events.add(
+            error(
+                operation,
+                "@invocation operations must define an input shape "
+                    + "(the message value written to the channel)."));
+      } else {
+        validateMessageTrait(model, operation, operation.getInput().get(), COMMAND, "input", events);
+      }
+      operation
+          .getOutput()
+          .ifPresent(output -> validateMessageTrait(model, operation, output, REPLY, "output", events));
+    }
+
+    if (isSubscription) {
       if (operation.getOutput().isEmpty()) {
         events.add(
             error(
                 operation,
-                "@receive operations must define an output shape "
+                "@subscription operations must define an output shape "
                     + "containing a @streaming union member."));
       } else {
         operation
@@ -87,24 +99,53 @@ public final class OperationBindingValidator extends AbstractValidator {
     }
   }
 
+  private void validateMessageTrait(
+      Model model,
+      OperationShape operation,
+      ShapeId messageId,
+      ShapeId expectedTrait,
+      String position,
+      List<ValidationEvent> events) {
+    Shape message = model.expectShape(messageId);
+    if (!message.hasTrait(expectedTrait)) {
+      events.add(
+          error(
+              operation,
+              String.format(
+                  "@invocation %s shape '%s' must be annotated with %s.",
+                  position, messageId, expectedTrait)));
+    }
+  }
+
   private void validateStreamingUnion(
       Model model, OperationShape operation, StructureShape output, List<ValidationEvent> events) {
-    boolean hasStreamingUnion =
-        output.getAllMembers().values().stream()
-            .anyMatch(
-                member ->
-                    model
-                        .getShape(member.getTarget())
-                        .flatMap(Shape::asUnionShape)
-                        .map(union -> union.hasTrait(StreamingTrait.ID))
-                        .orElse(false));
+    boolean hasStreamingUnion = false;
+    for (var member : output.getAllMembers().values()) {
+      var union = model.getShape(member.getTarget()).flatMap(Shape::asUnionShape);
+      if (union.isEmpty() || !union.get().hasTrait(StreamingTrait.ID)) {
+        continue;
+      }
+      hasStreamingUnion = true;
+      for (var eventMember : union.get().getAllMembers().values()) {
+        Shape eventShape = model.expectShape(eventMember.getTarget());
+        if (!eventShape.hasTrait(EVENT)) {
+          events.add(
+              error(
+                  operation,
+                  String.format(
+                      "@subscription stream member '%s' targets '%s', which must be annotated"
+                          + " with %s.",
+                      eventMember.getMemberName(), eventMember.getTarget(), EVENT)));
+        }
+      }
+    }
 
     if (!hasStreamingUnion) {
       events.add(
           error(
               operation,
-              "@receive operation output must contain a member targeting a @streaming union "
-                  + "(the consumer's subscription)."));
+              "@subscription operation output must contain a member targeting a @streaming union "
+                  + "(the client's subscription view)."));
     }
   }
 }

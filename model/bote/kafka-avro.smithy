@@ -12,18 +12,16 @@ use smithy.api#protocolDefinition
 /// at runtime — the registry URL and credentials are not part of the
 /// contract and must not appear in the model.
 ///
-/// All operations in a service annotated with @kafkaAvro must use
-/// @kafkaProducer and be bound to a topic via @kafkaTopic.
-///
-/// Consumer scaffolding and schema registrar code are generated from the
-/// producer model — there is no separate consumer operation. The consumer
-/// group is a runtime concern and must not appear in the model.
+/// Operations in a service annotated with @kafkaAvro must use @invocation or
+/// @subscription and declare their topic with @kafkaTopic.
 @protocolDefinition(
     traits: [
         bote#kafkaTopic
-        bote#channel
-        bote#send
-        bote#receive
+        bote#invocation
+        bote#subscription
+        bote#event
+        bote#command
+        bote#reply
         bote#kafkaKey
         bote#kafkaHeader
         bote#avroCompatibility

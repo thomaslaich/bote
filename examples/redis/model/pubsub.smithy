@@ -1,59 +1,52 @@
 $version: "2"
 
-// Redis Pub/Sub example on the unified @channel model. The channel owns nothing but
-// its name (Pub/Sub is ephemeral — no retention, no config), so the marker shape is
-// genuinely thin. It still binds the same way (@channel) and has a home for
-// channel-level docs, which is the payoff of keeping it a shape.
+// Redis Pub/Sub example using operation-level channel addresses.
 namespace presence
 
-use bote#channel
-use bote#receive
+use bote#command
+use bote#event
+use bote#invocation
 use bote#redisChannel
 use bote#redisPubSubJson
-use bote#send
+use bote#subscription
 
-/// The presence channel. Pub/Sub is ephemeral, so the channel is just an address.
+/// Presence API: clients set their presence and subscribe to presence changes.
+@title("Presence API")
+@redisPubSubJson
+service Presence {
+    version: "1.0.0"
+    operations: [
+        SetPresence
+        SubscribeToPresence
+    ]
+}
+
+/// Set a user's presence.
+@invocation
 @redisChannel(name: "presence")
-structure PresenceChannel {}
-
-/// Publishes user presence updates.
-@title("Presence Publisher API")
-@redisPubSubJson
-service PresencePublisher {
-    version: "1.0.0"
-    operations: [
-        PublishPresence
-    ]
+operation SetPresence {
+    input: SetPresenceCommand
 }
 
-/// Subscribes to user presence updates.
-@title("Presence Subscriber API")
-@redisPubSubJson
-service PresenceSubscriber {
-    version: "1.0.0"
-    operations: [
-        SubscribePresence
-    ]
-}
-
-/// Publish a presence update to the presence channel.
-@send
-@channel(PresenceChannel)
-operation PublishPresence {
-    input: PresenceUpdate
-}
-
-/// Subscribe to presence updates on the presence channel.
-@receive
-@channel(PresenceChannel)
-operation SubscribePresence {
+/// Subscribe to presence changes on the presence channel.
+@subscription
+@redisChannel(name: "presence")
+operation SubscribeToPresence {
     output := {
         updates: PresenceSubscription
     }
 }
 
-/// A user's presence changing.
-structure PresenceUpdate {
+/// Command to set a user's presence.
+@command
+structure SetPresenceCommand {
+    userId: String
+    status: PresenceStatus
+}
+
+/// A user's presence changed.
+@event
+structure PresenceChanged {
     userId: String
     status: PresenceStatus
     sentAt: Timestamp
@@ -65,8 +58,8 @@ enum PresenceStatus {
     OFFLINE
 }
 
-/// The subscriber's streaming subscription — receiver-side, not shared contract.
+/// The client's subscription view of presence changes.
 @streaming
 union PresenceSubscription {
-    presenceUpdate: PresenceUpdate
+    presenceChanged: PresenceChanged
 }

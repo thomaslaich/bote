@@ -14,20 +14,16 @@ class KafkaKeyValidatorTest {
       """
       $version: "2"
       namespace test
-      use bote#kafkaJson
-      use bote#send
-      use bote#kafkaTopic
-      use bote#channel
-      use bote#kafkaKey
+use bote#kafkaJson
+use bote#invocation
+use bote#kafkaTopic
+use bote#kafkaKey
+use bote#command
 
-      @kafkaJson
+@kafkaJson
       service TestService { operations: [Publish] }
-
+      @invocation
       @kafkaTopic(name: "events")
-      structure Events {}
-
-      @send
-      @channel(Events)
       operation Publish { input: %s }
       """;
 
@@ -39,13 +35,14 @@ class KafkaKeyValidatorTest {
         .getValidationEvents(Severity.ERROR);
   }
 
-  @Test
-  void oneKeyMemberIsValid() {
+@Test
+  void commandWithOneKeyMemberIsValid() {
     String model =
         PREAMBLE.formatted("Payload")
             + """
+@command
             structure Payload {
-                @kafkaKey
+@kafkaKey
                 id: String
                 value: String
             }
@@ -53,11 +50,12 @@ class KafkaKeyValidatorTest {
     assertTrue(validate(model).isEmpty());
   }
 
-  @Test
+@Test
   void noKeyMemberIsValid() {
     String model =
         PREAMBLE.formatted("Payload")
             + """
+@command
             structure Payload {
                 id: String
                 value: String
@@ -66,15 +64,16 @@ class KafkaKeyValidatorTest {
     assertTrue(validate(model).isEmpty());
   }
 
-  @Test
+@Test
   void twoKeyMembersIsError() {
     String model =
         PREAMBLE.formatted("Payload")
             + """
+@command
             structure Payload {
-                @kafkaKey
+@kafkaKey
                 id: String
-                @kafkaKey
+@kafkaKey
                 secondKey: String
             }
             """;

@@ -22,153 +22,134 @@ A broker-agnostic core plus service-level protocol traits and per-broker channel
 
 **Broker-agnostic core** — these carry no broker-specific meaning:
 
-- `@send` / `@receive` — direction of flow for an operation ([AsyncAPI](https://www.asyncapi.com/)'s send/receive vocabulary)
-- `@channel` — binds an operation to a channel shape (an `@idRef`); the single binding mechanism across every broker
+- `@invocation` / `@subscription` — message contract operations; generated
+  AsyncAPI still emits `send` / `receive` actions
 
-**Per-broker address & config** — applied to the channel shape:
+**Per-broker address & config**:
 
-- `@kafkaTopic` / `@kafkaTopicConfig` — Kafka topic name, compaction, partitions, retention, …
+- `@kafkaTopic` / `@kafkaTopicConfig` — Kafka topic name, compaction, partitions,
+  retention, …
 - `@redisStream` — Redis stream name + `maxLen`
 - `@redisChannel` — Redis Pub/Sub channel name
 
 **Message decoration & evolution**:
 
+- `@event` / `@command` / `@reply` — classifies payload structures by message
+  kind
 - `@kafkaKey` — marks the Kafka message key
 - `@kafkaHeader` — maps a member to a Kafka header
 - `@avroCompatibility` — Avro schema compatibility mode
 
-A **channel** is a marker structure carrying an address trait. Operations bind with `@channel`, and the channel's address/config are declared once and shared. Because the channel is a shape (not a string repeated on each operation), a producer and a consumer in different repos bind to the *same* channel and their generated AsyncAPI channel sections use the same address and bindings. A separate catalog union can document every event type allowed on a channel; `@streaming` lives only on the **consumer's** subscription union, which may be a subset of that catalog.
+Kafka operations declare their topic directly with `@kafkaTopic`. An
+`@invocation` takes a `@command` payload and an optional `@reply`; a
+`@subscription` streams `@event` payloads through a `@streaming` union.
+
+## Contract ownership
+
+`bote` models the API a contract owner offers to other applications, not a
+broker's internal view and not both sides of a conversation at once. The owner is
+the party responsible for the domain semantics of the messages:
+
+- A service owns the commands it accepts.
+- A service owns the events it emits.
+- A broker or platform may own topic provisioning, retention, ACLs and delivery
+  mechanics, but that is separate from owning the message contract.
+
+That is why operation traits describe the client-facing API surface:
+
+- `@invocation` means a client can invoke a capability by writing a command
+  message to the broker address on the operation. The input must be a `@command`
+  structure. If the operation has an output, that output must be a `@reply`
+  structure.
+- `@subscription` means a client can subscribe to events from the contract owner.
+  The output must contain a `@streaming` union whose members target `@event`
+  structures.
+
+Message-kind traits describe payload semantics, not transport direction:
+
+- `@command` is an instruction the contract owner accepts.
+- `@event` is a fact the contract owner emits.
+- `@reply` is an optional response to an invocation.
+
+The AsyncAPI generator maps this vocabulary to AsyncAPI's transport actions:
+`@invocation` becomes `action: send`, and `@subscription` becomes
+`action: receive`.
 
 ## Example
 
-The shared model defines the Kafka topic as a marker channel shape, plus the
-payload shapes and an optional catalog of every event type allowed on that topic.
+This order-service contract offers one command and one event subscription. The
+command and event topics are declared on the operations.
 
 ```smithy
 $version: "2"
 
-namespace example.shared
+namespace example.orders
 
+use bote#command
+use bote#event
+use bote#invocation
+use bote#kafkaJson
 use bote#kafkaKey
 use bote#kafkaTopic
-use bote#kafkaTopicConfig
+use bote#subscription
 
-// The channel: a marker shape carrying the address + config. Declared once and
-// shared by producer and consumer services.
-@kafkaTopic(name: "orders")
-@kafkaTopicConfig(partitions: 6, replicationFactor: 3)
-structure OrdersTopic {}
-
-// Optional catalog: all event types allowed on the orders topic.
-union OrderEvent {
-    placed: OrderPlaced
-    shipped: OrderShipped
+@kafkaJson
+service OrderService {
+    operations: [InvokeSubmitOrder, SubscribeToOrderEvents]
 }
 
+@invocation
+@kafkaTopic(name: "orders.commands")
+operation InvokeSubmitOrder {
+    input: SubmitOrder
+}
+
+@subscription
+@kafkaTopic(name: "orders.events")
+operation SubscribeToOrderEvents {
+    output := { events: OrderEvents }
+}
+
+@command
+structure SubmitOrder {
+    @kafkaKey
+    orderId: String
+    customerId: String
+}
+
+@event
 structure OrderPlaced {
     @kafkaKey
     orderId: String
     customerId: String
 }
 
-structure OrderShipped {
-    @kafkaKey
-    orderId: String
-    carrier: String
-}
-```
-
-The producer service owns only its application view: it binds to the shared topic
-and sends concrete event payloads.
-
-```smithy
-$version: "2"
-
-namespace example.producer
-
-use bote#channel
-use bote#kafkaJson
-use bote#send
-use example.shared#OrderPlaced
-use example.shared#OrderShipped
-use example.shared#OrdersTopic
-
-// The producer's perspective: emits individual event types to the channel.
-@kafkaJson
-service OrderService {
-    operations: [PublishOrderPlaced, PublishOrderShipped]
-}
-
-@send
-@channel(OrdersTopic)
-operation PublishOrderPlaced {
-    input: OrderPlaced
-}
-
-@send
-@channel(OrdersTopic)
-operation PublishOrderShipped {
-    input: OrderShipped
-}
-```
-
-The consumer service has its own application view. Its `@streaming` subscription
-union can be a subset of the shared catalog.
-
-```smithy
-$version: "2"
-
-namespace example.consumer
-
-use bote#channel
-use bote#kafkaJson
-use bote#receive
-use example.shared#OrderShipped
-use example.shared#OrdersTopic
-
-// The consumer's perspective: subscribes to the subset it cares about.
-@kafkaJson
-service FulfilmentDashboard {
-    operations: [ConsumeOrderUpdates]
-}
-
-@receive
-@channel(OrdersTopic)
-operation ConsumeOrderUpdates {
-    output := {
-        updates: OrderUpdates
-    }
-}
-
 @streaming
-union OrderUpdates {
-    shipped: OrderShipped
+union OrderEvents {
+    placed: OrderPlaced
 }
 ```
-
-The producer and consumer can live in different repos while depending on the same shared model. Both bind to `OrdersTopic`; payload types are defined once, while the consumer's `@streaming` subscription union is its local view and may be a subset of the catalog.
 
 ## Generating AsyncAPI
 
 The `smithy-asyncapi` module provides a Smithy build plugin that emits an
 [AsyncAPI 3.1](https://www.asyncapi.com/) document from one or more bote protocol
-services. The send/receive vocabulary maps directly onto bote's `@send`/`@receive`:
+services. Bote's `@invocation`/`@subscription` operations map to AsyncAPI's
+`send`/`receive` actions:
 
 | bote                          | AsyncAPI 3.1                                    |
 |-------------------------------|-------------------------------------------------|
 | protocol service              | the document (`info`, `defaultContentType`)     |
-| channel shape (`@kafkaTopic` / `@redisStream` / `@redisChannel`) | a `channel` |
-| send `input` / receive subscription | the channel's `messages` and operation's `messages` |
-| channel shape `@documentation` | the channel `description`                      |
-| `@channel`                    | the operation's `channel` reference             |
-| `@send` / `@receive`          | an `operation` with `action: send` / `receive`  |
+| operation address trait (`@kafkaTopic` / `@redisStream` / `@redisChannel`) | a `channel` |
+| invocation `input` / subscription output | the channel's `messages` and operation's `messages` |
+| `@invocation` / `@subscription`  | an `operation` with `action: send` / `receive`   |
 | payload structure             | a component `message` + JSON Schema `payload`   |
 | `@kafkaKey`                   | the Kafka message binding `key`                 |
 | `@kafkaHeader`                | the message `headers` schema                    |
 | `@kafkaTopicConfig`           | Kafka channel binding partitions/replicas/config |
 | `@kafkaTopic(compacted: true)` | `cleanup.policy: [compact]`                    |
 
-Enable the `asyncapi` plugin in a consumer's `smithy-build.json`:
+Enable the `asyncapi` plugin in a Smithy build:
 
 ```json
 {
@@ -185,38 +166,15 @@ By default, one file is written per protocol service, named
 shape ID to target one:
 
 ```json
-"plugins": { "asyncapi": { "service": "orders.producer#OrderService" } }
+"plugins": { "asyncapi": { "service": "examples.kafka.orders#OrderService" } }
 ```
 
-To generate one AsyncAPI application document from several Smithy protocol
-services, use `services`:
+Two example modules exercise the generator end-to-end:
 
-```json
-"plugins": {
-  "asyncapi": {
-    "services": [
-      "smartylighting.device#StreetlightKafka",
-      "smartylighting.device#StreetlightRedis"
-    ],
-    "title": "Streetlight Device",
-    "filename": "StreetlightDevice.asyncapi.json"
-  }
-}
-```
-
-Three example modules exercise the generator end-to-end:
-
-- **`examples/kafka-streetlights`** — a faithful Kafka port of AsyncAPI's
-  Streetlights sample (marker channels), for comparing the output against the
-  official document. A `StreetlightDevice` and a `StreetlightsBackend` bind to the
-  *same* channels with opposite `@send`/`@receive` — identical `channels`,
-  opposite `operations`.
-- **`examples/kafka-orders`** — a multi-event `orders` topic modelled as a
-  marker channel plus separate catalog union. The producer emits individual event
-  types; the consumer `@receive`s a **subset** via its own `@streaming`
-  subscription union.
+- **`examples/kafka`** — Kafka order-service and streetlight-device contracts,
+  modelled as provider-owned APIs with operation-level topics.
 - **`examples/redis`** — Redis Streams (`chat`) and Redis Pub/Sub (`presence`),
-  showing the same `@channel` model on a second broker.
+  following the same invocation/subscription and command/event rules.
 
 Run `gradle build` and inspect each module's
 `build/smithyprojections/<module>/source/asyncapi/`.
@@ -228,9 +186,9 @@ The quickest is [AsyncAPI Studio](https://studio.asyncapi.com), which gives a
 live, navigable view of the channels, operations, and message schemas:
 
 ```shell
-just studio                          # kafka-streetlights / StreetlightsBackend
-just studio kafka-orders OrderService
-just studio redis ChatProducer
+just studio                          # kafka / StreetlightDevice
+just studio kafka OrderService
+just studio redis ChatRoom
 ```
 
 `just studio [module] [service]` builds, then opens Studio preloaded with that
@@ -245,8 +203,7 @@ Scalar is OpenAPI-only and does not render AsyncAPI.
 |------------------------------|--------------------------|-------------------------------------------|
 | (root)                       | `io.bote:bote`           | trait definitions, protocol specs, validators |
 | `codegen/smithy-asyncapi` | `io.bote:smithy-asyncapi` | the AsyncAPI Smithy build plugin |
-| `examples/kafka-streetlights` | —                       | Kafka port of the official Streetlights sample |
-| `examples/kafka-orders`      | —                        | multi-event topic with marker channel + catalog |
+| `examples/kafka`             | —                        | Kafka order-service + streetlight-device contracts |
 | `examples/redis`             | —                        | Redis Streams + Pub/Sub                    |
 
 ## Build

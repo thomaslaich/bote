@@ -29,13 +29,12 @@ import software.amazon.smithy.model.traits.TitleTrait;
 /**
  * Converts one or more bote-annotated Smithy services into an AsyncAPI 3.1.0 document.
  *
- * <p>The mapping mirrors AsyncAPI's send/receive vocabulary, which bote's
- * {@code @send}/{@code @receive} traits were modelled on:
+ * <p>The mapping keeps bote's contract vocabulary while emitting AsyncAPI's send/receive actions:
  *
  * <ul>
  *   <li>bote protocol service(s) -&gt; the AsyncAPI document
  *   <li>{@code @kafkaTopic}/{@code @redisStream}/{@code @redisChannel} -&gt; a channel
- *   <li>{@code @send}/{@code @receive} -&gt; an operation with action send/receive
+ *   <li>{@code @invocation}/{@code @subscription} -&gt; an operation with action send/receive
  *   <li>each message value structure -&gt; a component message + JSON Schema payload
  *   <li>{@code @kafkaKey} -&gt; the Kafka message binding key
  *   <li>{@code @kafkaHeader} -&gt; the message headers schema
@@ -53,15 +52,14 @@ final class AsyncApiConverter {
   private static final ShapeId KAFKA_PROTOBUF = ShapeId.from("bote#kafkaProtobuf");
   private static final ShapeId KAFKA_TOPIC = ShapeId.from("bote#kafkaTopic");
   private static final ShapeId KAFKA_TOPIC_CONFIG = ShapeId.from("bote#kafkaTopicConfig");
-  private static final ShapeId CHANNEL = ShapeId.from("bote#channel");
   private static final ShapeId KAFKA_KEY = ShapeId.from("bote#kafkaKey");
   private static final ShapeId KAFKA_HEADER = ShapeId.from("bote#kafkaHeader");
   private static final ShapeId REDIS_STREAMS_JSON = ShapeId.from("bote#redisStreamsJson");
   private static final ShapeId REDIS_PUBSUB_JSON = ShapeId.from("bote#redisPubSubJson");
   private static final ShapeId REDIS_STREAM = ShapeId.from("bote#redisStream");
   private static final ShapeId REDIS_CHANNEL = ShapeId.from("bote#redisChannel");
-  private static final ShapeId SEND = ShapeId.from("bote#send");
-  private static final ShapeId RECEIVE = ShapeId.from("bote#receive");
+  private static final ShapeId INVOCATION = ShapeId.from("bote#invocation");
+  private static final ShapeId SUBSCRIPTION = ShapeId.from("bote#subscription");
 
   private final Model model;
   private final List<ServiceShape> services;
@@ -127,9 +125,9 @@ final class AsyncApiConverter {
       String contentType = contentTypeFor(service);
       for (ShapeId operationId : service.getAllOperations()) {
         OperationShape operation = model.expectShape(operationId, OperationShape.class);
-        if (operation.hasTrait(SEND)) {
+        if (operation.hasTrait(INVOCATION)) {
           addOperation(operation, "send", set(operation.getInputShape()), contentType);
-        } else if (operation.hasTrait(RECEIVE)) {
+        } else if (operation.hasTrait(SUBSCRIPTION)) {
           addOperation(operation, "receive", receivedMessages(operation), contentType);
         }
       }
@@ -149,11 +147,8 @@ final class AsyncApiConverter {
 
   private void addOperation(
       OperationShape operation, String action, Set<ShapeId> messages, String contentType) {
-    // Every operation binds to a marker channel shape via @channel. The shape owns the address and
-    // (where the broker has one) the binding and description. The message set is inferred from the
-    // operations that bind to it.
-    Shape channelShape = channelShape(operation);
-    String address = channelAddress(channelShape);
+    Shape channelSource = operation;
+    String address = channelAddress(channelSource);
     Channel channel =
         channels.computeIfAbsent(
             address,
@@ -161,8 +156,10 @@ final class AsyncApiConverter {
               Channel created =
                   new Channel(
                       a,
-                      channelBindings(a, channelShape),
-                      documentation(channelShape).orElse(null));
+                      channelBindings(a, channelSource),
+                      channelSource.getId().equals(operation.getId())
+                          ? null
+                          : documentation(channelSource).orElse(null));
               return created;
             });
     for (ShapeId messageId : messages) {
@@ -175,8 +172,8 @@ final class AsyncApiConverter {
   }
 
   /**
-   * A {@code @receive} operation's output contains a member targeting a {@code @streaming} union;
-   * each union member is a possible message type.
+   * A subscription operation's output contains a member targeting a {@code @streaming} union; each
+   * union member is a possible message type.
    */
   private Set<ShapeId> receivedMessages(OperationShape operation) {
     Set<ShapeId> result = new LinkedHashSet<>();
@@ -444,20 +441,7 @@ final class AsyncApiConverter {
     return qualified + suffix;
   }
 
-  /** Resolves the marker channel shape an operation binds to. */
-  private Shape channelShape(OperationShape operation) {
-    String channelId =
-        operation
-            .findTrait(CHANNEL)
-            .map(t -> t.toNode().expectStringNode().getValue())
-            .orElseThrow(
-                () ->
-                    new IllegalStateException(
-                        "Operation " + operation.getId() + " is missing @channel"));
-    return model.expectShape(ShapeId.from(channelId));
-  }
-
-  /** The channel address, read from whichever broker address trait the channel shape carries. */
+  /** The channel address, read from whichever broker address trait the operation carries. */
   private String channelAddress(Shape channelShape) {
     for (ShapeId addressTrait : List.of(KAFKA_TOPIC, REDIS_STREAM, REDIS_CHANNEL)) {
       Optional<String> name =
@@ -469,7 +453,7 @@ final class AsyncApiConverter {
       }
     }
     throw new IllegalStateException(
-        "Channel shape " + channelShape.getId() + " has no broker address trait");
+        "Operation " + channelShape.getId() + " has no broker address trait");
   }
 
   /** The channel's protocol binding, or null where the broker has no standard AsyncAPI binding. */
@@ -521,12 +505,7 @@ final class AsyncApiConverter {
     return single;
   }
 
-  /**
-   * One channel (a Kafka topic or a Redis stream). Bindings and description are precomputed when
-   * the channel is first seen — for Kafka from the shared @kafkaTopic shape (so the section is
-   * identical across every service that binds to it); for Redis there is no standard binding, so
-   * both are {@code null}.
-   */
+  /** One channel (a Kafka topic or Redis address), accumulated from operation address traits. */
   private static final class Channel {
     private final String topic;
     private final Node bindings;

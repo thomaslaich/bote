@@ -6,15 +6,20 @@ use smithy.api#protocolDefinition
 
 /// A Smithy protocol for Kafka using JSON serialization.
 ///
-/// Services annotated with this trait publish JSON-encoded messages over
-/// Kafka. Operations must be annotated with @kafkaProducer and bound to
-/// a topic via @kafkaTopic.
-///
-/// Consumer scaffolding is generated from the producer model — there is
-/// no separate consumer operation. The consumer group is a runtime concern
-/// and must not appear in the model.
+/// Services annotated with this trait exchange JSON-encoded messages over
+/// Kafka. Operations must be annotated with @invocation or @subscription and
+/// declare their topic with @kafkaTopic.
 @protocolDefinition(
-    traits: [bote#kafkaTopic, bote#channel, bote#send, bote#receive, bote#kafkaKey, bote#kafkaHeader]
+    traits: [
+        bote#kafkaTopic
+        bote#invocation
+        bote#subscription
+        bote#event
+        bote#command
+        bote#reply
+        bote#kafkaKey
+        bote#kafkaHeader
+    ]
 )
 @trait(selector: "service")
 structure kafkaJson {}

@@ -1,58 +1,56 @@
 $version: "2"
 
-// Redis Streams example on the unified @channel model. The stream is a marker
-// channel shape carrying @redisStream. Producer and consumer bind to it with
-// @channel, exactly like the Kafka example; only the address trait differs.
+// Redis Streams example using operation-level stream addresses.
 namespace chat
 
-use bote#channel
-use bote#receive
+use bote#command
+use bote#event
+use bote#invocation
 use bote#redisStream
 use bote#redisStreamsJson
-use bote#send
+use bote#subscription
 
-/// The chat-messages stream (channel). Its name and config are declared once here.
-@redisStream(name: "chat:messages", maxLen: 10000)
-structure ChatMessagesStream {}
-
-/// A chat producer: posts messages to the chat stream.
-@title("Chat Producer API")
+/// The chat room API: clients post messages and subscribe to posted messages.
+@title("Chat Room API")
 @redisStreamsJson
-service ChatProducer {
+service ChatRoom {
     version: "1.0.0"
     operations: [
         PostMessage
-    ]
-}
-
-/// A chat consumer: reads messages from the chat stream.
-@title("Chat Consumer API")
-@redisStreamsJson
-service ChatConsumer {
-    version: "1.0.0"
-    operations: [
-        ConsumeMessages
+        SubscribeToMessages
     ]
 }
 
 /// Post a chat message to the room stream.
-@send
-@channel(ChatMessagesStream)
+@invocation
+@redisStream(name: "chat:messages", maxLen: 10000)
 operation PostMessage {
-    input: ChatMessage
+    input: PostChatMessage
 }
 
-/// Consume chat messages from the room stream.
-@receive
-@channel(ChatMessagesStream)
-operation ConsumeMessages {
+/// Subscribe to posted chat messages from the room stream.
+@subscription
+@redisStream(name: "chat:messages", maxLen: 10000)
+operation SubscribeToMessages {
     output := {
         messages: ChatMessageSubscription
     }
 }
 
-/// A message posted to a chat room.
-structure ChatMessage {
+/// Command to post a chat message to a room.
+@command
+structure PostChatMessage {
+    roomId: String
+
+    userId: String
+
+    @length(min: 1, max: 4000)
+    body: String
+}
+
+/// A chat message was posted to a room.
+@event
+structure ChatMessagePosted {
     roomId: String
 
     userId: String
@@ -63,8 +61,8 @@ structure ChatMessage {
     sentAt: Timestamp
 }
 
-/// The consumer's subscription — receiver-side streaming view, not shared contract.
+/// The client's subscription view of posted chat messages.
 @streaming
 union ChatMessageSubscription {
-    chatMessage: ChatMessage
+    chatMessage: ChatMessagePosted
 }

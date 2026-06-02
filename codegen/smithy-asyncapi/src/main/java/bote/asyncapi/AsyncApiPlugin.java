@@ -28,11 +28,11 @@ import software.amazon.smithy.model.shapes.ShapeId;
  *     "plugins": {
  *         "asyncapi": {
  *             "services": [
- *                 "smartylighting.device#StreetlightKafka",
- *                 "smartylighting.device#StreetlightRedis"
+ *                 "examples.kafka.orders#OrderService",
+ *                 "examples.kafka.streetlights#StreetlightDevice"
  *             ],
- *             "title": "Streetlight Device",
- *             "filename": "StreetlightDevice.asyncapi.json"
+ *             "title": "Kafka Examples",
+ *             "filename": "KafkaExamples.asyncapi.json"
  *         }
  *     }
  * }

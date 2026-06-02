@@ -2,38 +2,43 @@ $version: "2"
 
 namespace bote
 
-// Broker-agnostic core. These traits carry no Kafka- or Redis-specific meaning —
-// they describe the *shape* of an event-driven contract (direction of flow, and
-// which channel an operation acts on). Each broker supplies its own address/config
-// trait on the channel structure (@kafkaTopic, @redisStream, @redisChannel, ...).
-/// Binds an operation to the channel it sends to or receives from.
-///
-/// The referenced shape is a structure carrying a broker address trait
-/// (@kafkaTopic, @redisStream or @redisChannel) — the channel. This is the
-/// AsyncAPI relationship "operation -> channel": a single operation acts on a
-/// single channel. Modelling the channel as a shared shape (rather than a string
-/// repeated on each operation) lets its address and configuration be declared once
-/// and distributed as part of the contract, like the message payload types.
-@trait(selector: "operation")
-@idRef(
-    failWhenMissing: true
-    selector: ":is([trait|bote#kafkaTopic], [trait|bote#redisStream], [trait|bote#redisChannel])"
-)
-string channel
-
-/// Marks an operation as sending messages to its channel.
+// Broker-agnostic core. These traits carry no Kafka- or Redis-specific meaning:
+// they describe the shape of a message-driven contract. Broker-specific address
+// traits live directly on operations.
+/// Marks an operation as an invocation accepted by this contract.
 /// The operation input is the message value written to the channel.
 @trait(
     selector: "operation"
-    conflicts: [bote#receive]
+    conflicts: [bote#subscription]
 )
-structure send {}
+structure invocation {}
 
-/// Marks an operation as receiving messages from its channel.
+/// Marks an operation as a subscription offered by this contract.
 /// The operation output must contain a member targeting a @streaming union,
 /// where each union member is a possible event type on the channel.
 @trait(
     selector: "operation"
-    conflicts: [bote#send]
+    conflicts: [bote#invocation]
 )
-structure receive {}
+structure subscription {}
+
+/// Marks a payload structure as an event message.
+@trait(
+    selector: "structure"
+    conflicts: [bote#command, bote#reply]
+)
+structure event {}
+
+/// Marks a payload structure as a command message.
+@trait(
+    selector: "structure"
+    conflicts: [bote#event, bote#reply]
+)
+structure command {}
+
+/// Marks a payload structure as a reply message.
+@trait(
+    selector: "structure"
+    conflicts: [bote#event, bote#command]
+)
+structure reply {}

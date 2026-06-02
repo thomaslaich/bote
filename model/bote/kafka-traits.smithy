@@ -2,18 +2,10 @@ $version: "2"
 
 namespace bote
 
-/// Declares a Kafka topic — an AsyncAPI channel — as a first-class, shareable shape.
+/// Declares the Kafka topic an operation sends to or receives from.
 ///
-/// Apply to an empty marker structure; operations bind to it with @channel.
-/// Modelling the topic as a shape (rather than repeating a name string on every
-/// operation) lets the topic — its name, compaction, partitions and retention —
-/// be defined once and distributed as part of the contract, exactly like the
-/// message payload types. Producer and consumer services in different repos then
-/// reference the same channel shape, so their AsyncAPI channel sections come out
-/// identical by construction.
-/// Catalog unions may separately list the event types that travel on the topic;
-/// receiver-side @streaming unions separately model each consumer's subscription.
-@trait(selector: "structure")
+/// Apply directly to a @invocation or @subscription operation.
+@trait(selector: "operation")
 structure kafkaTopic {
     /// The Kafka topic name.
     @required
