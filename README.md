@@ -195,8 +195,6 @@ just studio redis ChatRoom
 module's document (it live-reloads, so re-running the build refreshes the view).
 Under the hood it runs `npx @asyncapi/cli start studio <file>`, so it needs Node.
 
-Scalar is OpenAPI-only and does not render AsyncAPI.
-
 ## Modules
 
 | Module                       | Coordinates              | Contents                                  |
