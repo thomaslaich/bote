@@ -11,12 +11,13 @@ import software.amazon.smithy.model.shapes.ShapeId;
 
 /**
  * A {@link SmithyBuildPlugin} that emits an AsyncAPI 3.1.0 document for services annotated with a
- * bote Kafka protocol trait ({@code @kafkaJson}, {@code @kafkaAvro}, or {@code @kafkaProtobuf}).
+ * bote protocol trait ({@code @kafkaJson}, {@code @kafkaAvro}, {@code @kafkaProtobuf}, or a Redis
+ * protocol trait).
  *
  * <p>Each AsyncAPI document describes a single application, so one file is written per service,
  * named {@code <ServiceName>.asyncapi.json}.
  *
- * <p>By default every Kafka service in the model is documented. Set the optional {@code service}
+ * <p>By default every bote protocol service in the model is documented. Set the optional {@code service}
  * setting to a service shape ID to target exactly one — the idiomatic way to emit several documents
  * is then one projection per service (mirroring smithy-openapi):
  *
@@ -24,7 +25,7 @@ import software.amazon.smithy.model.shapes.ShapeId;
  * {
  *     "version": "1.0",
  *     "plugins": {
- *         "asyncapi": {
+ *         "asyncapi-codegen": {
  *             "service": "smartylighting.device#StreetlightDevice"
  *         }
  *     }
@@ -35,7 +36,7 @@ public final class AsyncApiPlugin implements SmithyBuildPlugin {
 
   @Override
   public String getName() {
-    return "asyncapi";
+    return "asyncapi-codegen";
   }
 
   @Override
@@ -46,7 +47,7 @@ public final class AsyncApiPlugin implements SmithyBuildPlugin {
 
     boolean matched = false;
     for (ServiceShape service : model.getServiceShapes()) {
-      if (!AsyncApiConverter.isKafkaService(service)) {
+      if (!AsyncApiConverter.isBoteService(service)) {
         continue;
       }
       if (target.isPresent() && !service.getId().equals(target.get())) {
@@ -59,10 +60,9 @@ public final class AsyncApiPlugin implements SmithyBuildPlugin {
 
     if (target.isPresent() && !matched) {
       throw new SmithyBuildException(
-          "asyncapi: `service` "
+          "asyncapi-codegen: `service` "
               + target.get()
-              + " is not a Kafka service (one annotated with @kafkaJson, @kafkaAvro, or "
-              + "@kafkaProtobuf) in the model.");
+              + " is not a bote protocol service in the model.");
     }
   }
 }

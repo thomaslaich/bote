@@ -11,6 +11,8 @@ namespace bote
 /// message payload types. Producer and consumer services in different repos then
 /// reference the same channel shape, so their AsyncAPI channel sections come out
 /// identical by construction.
+/// Catalog unions may separately list the event types that travel on the topic;
+/// receiver-side @streaming unions separately model each consumer's subscription.
 @trait(selector: "structure")
 structure kafkaTopic {
     /// The Kafka topic name.
@@ -22,32 +24,6 @@ structure kafkaTopic {
     /// Defaults to false.
     compacted: Boolean
 }
-
-/// Binds an operation to the topic (channel) it sends to or receives from.
-///
-/// The referenced shape must be a structure carrying @kafkaTopic. This is the
-/// AsyncAPI relationship "operation -> channel": a single operation acts on a
-/// single channel.
-@trait(selector: "operation")
-@idRef(failWhenMissing: true, selector: "[trait|bote#kafkaTopic]")
-string channel
-
-/// Marks an operation as sending messages to a Kafka topic.
-/// The operation input is the message value written to the topic.
-@trait(
-    selector: "operation"
-    conflicts: [bote#receive]
-)
-structure send {}
-
-/// Marks an operation as receiving messages from a Kafka topic.
-/// The operation output must contain a member targeting a @streaming union,
-/// where each union member is a possible event type on the topic.
-@trait(
-    selector: "operation"
-    conflicts: [bote#send]
-)
-structure receive {}
 
 /// Marks a structure member as the Kafka message key.
 /// Only one member per structure may carry this trait.

@@ -1,4 +1,6 @@
 rootProject.name = "bote"
 
-include("asyncapi")
-include("example")
+include("codegen:smithy-asyncapi-codegen")
+include("examples:kafka-streetlights")
+include("examples:kafka-orders")
+include("examples:redis")

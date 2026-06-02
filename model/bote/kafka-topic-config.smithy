@@ -17,7 +17,7 @@ use smithy.api#range
 /// configuration file.
 ///
 /// All fields are optional. Omitted fields inherit broker-level defaults.
-@trait(selector: "structure [trait|bote#kafkaTopic]")
+@trait(selector: "[trait|bote#kafkaTopic]")
 structure kafkaTopicConfig {
     /// Number of partitions.
     ///

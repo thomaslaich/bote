@@ -14,13 +14,13 @@ class KafkaOperationBindingValidatorTest {
       """
       $version: "2"
       namespace test
-      use bote#kafkaJson
+      use bote#asyncApi
       use bote#send
       use bote#receive
       use bote#kafkaTopic
       use bote#channel
 
-      @kafkaJson
+      @asyncApi
       service TestService {
           operations: [%s]
       }

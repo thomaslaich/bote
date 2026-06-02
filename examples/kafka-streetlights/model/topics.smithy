@@ -5,10 +5,10 @@ $version: "2"
 // that both the producing and consuming services depend on — neither owns the
 // other's perspective, they only share these declarations.
 //
-// Because each topic is a single @kafkaTopic shape, its name/partitions/
-// retention/compaction are declared exactly once. Every service that binds to it
-// (see device.smithy and backend.smithy) emits an identical AsyncAPI channel
-// section — they differ only in whether they @send or @receive.
+// Each channel is a marker structure carrying the topic's
+// name/partitions/retention/compaction, declared exactly once. Every service that
+// binds to a channel emits an identical AsyncAPI channel section for the messages it
+// sends or receives — they differ only in whether they @send or @receive.
 //
 // This lives in its own namespace (smartylighting.shared) precisely because it is
 // the shared artifact both services depend on — modelling, in one repo, what would
@@ -70,7 +70,3 @@ structure DimLight {
     /// Date and time when the message was sent.
     sentAt: Timestamp
 }
-// Note: the @streaming union wrappers that @receive operations require are NOT
-// here. They are each receiver's local view of which messages it consumes from a
-// channel — plumbing, not shared contract — so they live in the consuming
-// service's namespace (see device.smithy and backend.smithy).
