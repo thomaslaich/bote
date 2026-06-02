@@ -6,9 +6,10 @@ use smithy.api#range
 
 /// Declares infrastructure configuration for a Kafka topic.
 ///
-/// Applied to operations alongside @kafkaTopic. When producer and consumer
-/// operations share the same topic name, their @kafkaTopicConfig declarations
-/// must be identical — validators enforce this consistency.
+/// Applied to a @kafkaTopic structure (the channel). Because the topic is a
+/// single shared shape, its configuration is declared exactly once — there is
+/// no need to repeat it across operations or validate cross-operation
+/// consistency.
 ///
 /// These values are the authoritative specification of the topic's durability
 /// and retention contract. Code generators can use them to drive topic
@@ -16,7 +17,7 @@ use smithy.api#range
 /// configuration file.
 ///
 /// All fields are optional. Omitted fields inherit broker-level defaults.
-@trait(selector: "operation")
+@trait(selector: "[trait|bote#kafkaTopic]")
 structure kafkaTopicConfig {
     /// Number of partitions.
     ///

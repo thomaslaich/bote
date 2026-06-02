@@ -19,7 +19,15 @@ use smithy.api#protocolDefinition
 /// producer model — there is no separate consumer operation. The consumer
 /// group is a runtime concern and must not appear in the model.
 @protocolDefinition(
-    traits: [bote#kafkaTopic, bote#send, bote#receive, bote#kafkaKey, bote#kafkaHeader, bote#avroCompatibility]
+    traits: [
+        bote#kafkaTopic
+        bote#channel
+        bote#send
+        bote#receive
+        bote#kafkaKey
+        bote#kafkaHeader
+        bote#avroCompatibility
+    ]
 )
 @trait(selector: "service")
 structure kafkaAvro {

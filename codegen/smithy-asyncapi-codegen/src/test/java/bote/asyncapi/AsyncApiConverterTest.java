@@ -17,36 +17,52 @@ class AsyncApiConverterTest {
       $version: "2"
       namespace test
 
-      use bote#kafkaJson
+      use bote#messaging
       use bote#kafkaTopic
       use bote#kafkaTopicConfig
       use bote#kafkaKey
       use bote#kafkaHeader
+      use bote#redisChannel
+      use bote#channel
       use bote#send
       use bote#receive
 
       /// Publishes and consumes order events.
       @title("Order Events API")
-      @kafkaJson
+      @messaging
       service OrderService {
           version: "2024-01-01"
-          operations: [PublishOrder, ConsumeOrders, PublishState]
+          operations: [PublishOrder, ConsumeOrders, PublishState, PublishPresence]
       }
 
-      @send
+      /// The orders topic.
       @kafkaTopic(name: "orders")
       @kafkaTopicConfig(partitions: 12, replicationFactor: 3, minInsyncReplicas: 2)
+      structure OrdersTopic {}
+
+      @kafkaTopic(name: "order-state", compacted: true)
+      structure OrderStateTopic {}
+
+      @redisChannel(name: "presence")
+      structure PresenceChannel {}
+
+      @send
+      @channel(OrdersTopic)
       operation PublishOrder { input: OrderEvent }
 
       @receive
-      @kafkaTopic(name: "orders")
+      @channel(OrdersTopic)
       operation ConsumeOrders {
           output := { events: OrderEventStream }
       }
 
       @send
-      @kafkaTopic(name: "order-state", compacted: true)
+      @channel(OrderStateTopic)
       operation PublishState { input: OrderState }
+
+      @send
+      @channel(PresenceChannel)
+      operation PublishPresence { input: PresenceUpdate }
 
       @streaming
       union OrderEventStream { orderEvent: OrderEvent }
@@ -62,6 +78,11 @@ class AsyncApiConverterTest {
       structure OrderState {
           @kafkaKey
           orderId: String
+      }
+
+      structure PresenceUpdate {
+          userId: String
+          status: String
       }
       """;
 
@@ -87,8 +108,7 @@ class AsyncApiConverterTest {
     assertEquals("2024-01-01", info.expectStringMember("version").getValue());
     // info.description comes from the service's @documentation.
     assertEquals(
-        "Publishes and consumes order events.",
-        info.expectStringMember("description").getValue());
+        "Publishes and consumes order events.", info.expectStringMember("description").getValue());
   }
 
   @Test
@@ -111,6 +131,18 @@ class AsyncApiConverterTest {
   }
 
   @Test
+  void mapsChannelDescriptionFromTopicShapeDocs() {
+    // The channel description comes from the @kafkaTopic shape's @documentation.
+    assertEquals(
+        "The orders topic.",
+        convert()
+            .expectObjectMember("channels")
+            .expectObjectMember("orders")
+            .expectStringMember("description")
+            .getValue());
+  }
+
+  @Test
   void mapsCompactionToCleanupPolicy() {
     ObjectNode topicConfig =
         convert()
@@ -122,6 +154,20 @@ class AsyncApiConverterTest {
     assertEquals(
         "compact",
         topicConfig.expectArrayMember("cleanup.policy").get(0).get().expectStringNode().getValue());
+  }
+
+  @Test
+  void oneServiceCanContainKafkaAndRedisChannels() {
+    ObjectNode channels = convert().expectObjectMember("channels");
+    assertTrue(channels.getMember("orders").isPresent());
+    assertTrue(channels.getMember("presence").isPresent());
+    assertFalse(channels.expectObjectMember("presence").getMember("bindings").isPresent());
+    assertTrue(
+        channels
+            .expectObjectMember("presence")
+            .expectObjectMember("messages")
+            .getMember("PresenceUpdate")
+            .isPresent());
   }
 
   @Test
@@ -193,6 +239,7 @@ class AsyncApiConverterTest {
     ObjectNode schemas = convert().expectObjectMember("components").expectObjectMember("schemas");
     assertTrue(schemas.getMember("OrderEvent").isPresent());
     assertTrue(schemas.getMember("OrderState").isPresent());
+    assertTrue(schemas.getMember("PresenceUpdate").isPresent());
     // The @streaming union wrapper is plumbing, not a message payload.
     assertFalse(schemas.getMember("OrderEventStream").isPresent());
     // Integer renders as JSON Schema integer, not number.
