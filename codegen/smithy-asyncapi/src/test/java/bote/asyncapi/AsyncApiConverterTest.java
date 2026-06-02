@@ -17,11 +17,12 @@ class AsyncApiConverterTest {
       $version: "2"
       namespace test
 
-      use bote#messaging
+      use bote#kafkaJson
       use bote#kafkaTopic
       use bote#kafkaTopicConfig
       use bote#kafkaKey
       use bote#kafkaHeader
+      use bote#redisPubSubJson
       use bote#redisChannel
       use bote#channel
       use bote#send
@@ -29,10 +30,16 @@ class AsyncApiConverterTest {
 
       /// Publishes and consumes order events.
       @title("Order Events API")
-      @messaging
+      @kafkaJson
       service OrderService {
           version: "2024-01-01"
-          operations: [PublishOrder, ConsumeOrders, PublishState, PublishPresence]
+          operations: [PublishOrder, ConsumeOrders, PublishState]
+      }
+
+      @redisPubSubJson
+      service PresenceService {
+          version: "2024-01-01"
+          operations: [PublishPresence]
       }
 
       /// The orders topic.
@@ -97,6 +104,21 @@ class AsyncApiConverterTest {
     return new AsyncApiConverter(model, service).convert();
   }
 
+  private ObjectNode convertGrouped() {
+    Model model =
+        Model.assembler()
+            .discoverModels()
+            .addUnparsedModel("test.smithy", MODEL)
+            .assemble()
+            .unwrap();
+    ServiceShape orders =
+        model.expectShape(ShapeId.from("test#OrderService"), ServiceShape.class);
+    ServiceShape presence =
+        model.expectShape(ShapeId.from("test#PresenceService"), ServiceShape.class);
+    return new AsyncApiConverter(model, java.util.List.of(orders, presence), java.util.Optional.of("Grouped API"))
+        .convert();
+  }
+
   @Test
   void emitsAsyncApi31Header() {
     ObjectNode doc = convert();
@@ -157,8 +179,8 @@ class AsyncApiConverterTest {
   }
 
   @Test
-  void oneServiceCanContainKafkaAndRedisChannels() {
-    ObjectNode channels = convert().expectObjectMember("channels");
+  void groupedServicesCanContainKafkaAndRedisChannels() {
+    ObjectNode channels = convertGrouped().expectObjectMember("channels");
     assertTrue(channels.getMember("orders").isPresent());
     assertTrue(channels.getMember("presence").isPresent());
     assertFalse(channels.expectObjectMember("presence").getMember("bindings").isPresent());
@@ -166,6 +188,12 @@ class AsyncApiConverterTest {
         channels
             .expectObjectMember("presence")
             .expectObjectMember("messages")
+            .getMember("PresenceUpdate")
+            .isPresent());
+    assertTrue(
+        convertGrouped()
+            .expectObjectMember("components")
+            .expectObjectMember("schemas")
             .getMember("PresenceUpdate")
             .isPresent());
   }
@@ -239,7 +267,6 @@ class AsyncApiConverterTest {
     ObjectNode schemas = convert().expectObjectMember("components").expectObjectMember("schemas");
     assertTrue(schemas.getMember("OrderEvent").isPresent());
     assertTrue(schemas.getMember("OrderState").isPresent());
-    assertTrue(schemas.getMember("PresenceUpdate").isPresent());
     // The @streaming union wrapper is plumbing, not a message payload.
     assertFalse(schemas.getMember("OrderEventStream").isPresent());
     // Integer renders as JSON Schema integer, not number.

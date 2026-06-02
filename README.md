@@ -4,19 +4,13 @@
 
 A [Smithy](https://smithy.io) trait library for Kafka, inspired by [Disney's Alloy](https://github.com/disneystreaming/alloy). The core of this repo is the *contract* — trait definitions, protocol specs, and validators. Codegen consumers (NSmithy, etc.) depend on the `bote` JAR to implement the protocol.
 
-A reference **AsyncAPI generator** ships alongside the contract in a separate codegen module (`io.bote:smithy-asyncapi-codegen`), demonstrating one way to consume the traits. It stays out of the contract JAR so the trait library has no codegen dependencies.
+A reference **AsyncAPI generator** ships alongside the contract in a separate codegen module (`io.bote:smithy-asyncapi`), demonstrating one way to consume the traits. It stays out of the contract JAR so the trait library has no codegen dependencies.
 
 ## What's here
 
-A broker-agnostic core plus per-broker channel traits.
+A broker-agnostic core plus service-level protocol traits and per-broker channel traits.
 
-**Application contract** — one trait per service, describing a messaging application view:
-
-| Trait        | Meaning                                   | Status  |
-|--------------|-------------------------------------------|---------|
-| `@messaging` | Application-level messaging contract     | Defined |
-
-**Legacy protocol traits** — still supported as service markers, but no longer required for mixed-broker documents:
+**Protocols** — one trait per service, picking the broker/mode and wire encoding:
 
 | Trait            | Broker / mode           | Encoding | Status  |
 |------------------|-------------------------|----------|---------|
@@ -93,14 +87,14 @@ $version: "2"
 namespace example.producer
 
 use bote#channel
-use bote#messaging
+use bote#kafkaJson
 use bote#send
 use example.shared#OrderPlaced
 use example.shared#OrderShipped
 use example.shared#OrdersTopic
 
 // The producer's perspective: emits individual event types to the channel.
-@messaging
+@kafkaJson
 service OrderService {
     operations: [PublishOrderPlaced, PublishOrderShipped]
 }
@@ -127,13 +121,13 @@ $version: "2"
 namespace example.consumer
 
 use bote#channel
-use bote#messaging
+use bote#kafkaJson
 use bote#receive
 use example.shared#OrderShipped
 use example.shared#OrdersTopic
 
 // The consumer's perspective: subscribes to the subset it cares about.
-@messaging
+@kafkaJson
 service FulfilmentDashboard {
     operations: [ConsumeOrderUpdates]
 }
@@ -156,14 +150,13 @@ The producer and consumer can live in different repos while depending on the sam
 
 ## Generating AsyncAPI
 
-The `smithy-asyncapi-codegen` module provides a Smithy build plugin that emits an
-[AsyncAPI 3.1](https://www.asyncapi.com/) document per service annotated with
-`@messaging` or a legacy bote protocol trait. The send/receive vocabulary maps directly
-onto bote's `@send`/`@receive`:
+The `smithy-asyncapi` module provides a Smithy build plugin that emits an
+[AsyncAPI 3.1](https://www.asyncapi.com/) document from one or more bote protocol
+services. The send/receive vocabulary maps directly onto bote's `@send`/`@receive`:
 
 | bote                          | AsyncAPI 3.1                                    |
 |-------------------------------|-------------------------------------------------|
-| `@messaging` service           | the document (`info`, `defaultContentType`)     |
+| protocol service              | the document (`info`, `defaultContentType`)     |
 | channel shape (`@kafkaTopic` / `@redisStream` / `@redisChannel`) | a `channel` |
 | send `input` / receive subscription | the channel's `messages` and operation's `messages` |
 | channel shape `@documentation` | the channel `description`                      |
@@ -175,25 +168,40 @@ onto bote's `@send`/`@receive`:
 | `@kafkaTopicConfig`           | Kafka channel binding partitions/replicas/config |
 | `@kafkaTopic(compacted: true)` | `cleanup.policy: [compact]`                    |
 
-Enable the `asyncapi-codegen` plugin in a consumer's `smithy-build.json`:
+Enable the `asyncapi` plugin in a consumer's `smithy-build.json`:
 
 ```json
 {
     "version": "1.0",
     "sources": ["model"],
     "plugins": {
-        "asyncapi-codegen": {}
+        "asyncapi": {}
     }
 }
 ```
 
-Because each AsyncAPI document describes a single application, one file is
-written per service, named `<ServiceName>.asyncapi.json`. By default every
-protocol service is documented; set the optional `service` setting to a service
-shape ID to target one (and use one projection per service to emit several):
+By default, one file is written per protocol service, named
+`<ServiceName>.asyncapi.json`. Set the optional `service` setting to a service
+shape ID to target one:
 
 ```json
-"plugins": { "asyncapi-codegen": { "service": "orders.producer#OrderService" } }
+"plugins": { "asyncapi": { "service": "orders.producer#OrderService" } }
+```
+
+To generate one AsyncAPI application document from several Smithy protocol
+services, use `services`:
+
+```json
+"plugins": {
+  "asyncapi": {
+    "services": [
+      "smartylighting.device#StreetlightKafka",
+      "smartylighting.device#StreetlightRedis"
+    ],
+    "title": "Streetlight Device",
+    "filename": "StreetlightDevice.asyncapi.json"
+  }
+}
 ```
 
 Three example modules exercise the generator end-to-end:
@@ -211,7 +219,7 @@ Three example modules exercise the generator end-to-end:
   showing the same `@channel` model on a second broker.
 
 Run `gradle build` and inspect each module's
-`build/smithyprojections/<module>/source/asyncapi-codegen/`.
+`build/smithyprojections/<module>/source/asyncapi/`.
 
 ### Viewing it
 
@@ -236,7 +244,7 @@ Scalar is OpenAPI-only and does not render AsyncAPI.
 | Module                       | Coordinates              | Contents                                  |
 |------------------------------|--------------------------|-------------------------------------------|
 | (root)                       | `io.bote:bote`           | trait definitions, protocol specs, validators |
-| `codegen/smithy-asyncapi-codegen` | `io.bote:smithy-asyncapi-codegen` | the AsyncAPI Smithy build plugin |
+| `codegen/smithy-asyncapi` | `io.bote:smithy-asyncapi` | the AsyncAPI Smithy build plugin |
 | `examples/kafka-streetlights` | —                       | Kafka port of the official Streetlights sample |
 | `examples/kafka-orders`      | —                        | multi-event topic with marker channel + catalog |
 | `examples/redis`             | —                        | Redis Streams + Pub/Sub                    |

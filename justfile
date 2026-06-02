@@ -15,9 +15,9 @@ fmt:
 # Pass an example module and a service, e.g. `just studio kafka-orders OrderService`
 # or `just studio redis ChatProducer`.
 studio example="kafka-streetlights" service="StreetlightsBackend": build
-    npx -y @asyncapi/cli start studio examples/{{ example }}/build/smithyprojections/{{ example }}/source/asyncapi-codegen/{{ service }}.asyncapi.json
+    npx -y @asyncapi/cli start studio examples/{{ example }}/build/smithyprojections/{{ example }}/source/asyncapi/{{ service }}.asyncapi.json
 
-# Publish bote + smithy-asyncapi-codegen to the local Maven repo (~/.m2) for local consumers
+# Publish bote + smithy-asyncapi to the local Maven repo (~/.m2) for local consumers
 publish-local:
     gradle publishToMavenLocal
 

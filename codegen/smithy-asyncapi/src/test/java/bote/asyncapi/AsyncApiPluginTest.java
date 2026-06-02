@@ -12,6 +12,7 @@ import software.amazon.smithy.build.MockManifest;
 import software.amazon.smithy.build.PluginContext;
 import software.amazon.smithy.build.SmithyBuildException;
 import software.amazon.smithy.model.Model;
+import software.amazon.smithy.model.node.ArrayNode;
 import software.amazon.smithy.model.node.Node;
 import software.amazon.smithy.model.node.ObjectNode;
 
@@ -21,7 +22,7 @@ class AsyncApiPluginTest {
       """
       $version: "2"
       namespace test
-      use bote#messaging
+      use bote#kafkaJson
       use bote#kafkaTopic
       use bote#channel
       use bote#kafkaKey
@@ -33,10 +34,10 @@ class AsyncApiPluginTest {
       @kafkaTopic(name: "b")
       structure BTopic {}
 
-      @messaging
+      @kafkaJson
       service A { operations: [PubA] }
 
-      @messaging
+      @kafkaJson
       service B { operations: [PubB] }
 
       @send
@@ -75,6 +76,18 @@ class AsyncApiPluginTest {
   void serviceSettingTargetsOneService() {
     Set<String> files = run(Node.objectNodeBuilder().withMember("service", "test#A").build());
     assertEquals(Set.of("A.asyncapi.json"), files);
+  }
+
+  @Test
+  void servicesSettingAggregatesOneDocument() {
+    ObjectNode settings =
+        Node.objectNodeBuilder()
+            .withMember(
+                "services",
+                ArrayNode.builder().withValue("test#A").withValue("test#B").build())
+            .withMember("filename", "Grouped.asyncapi.json")
+            .build();
+    assertEquals(Set.of("Grouped.asyncapi.json"), run(settings));
   }
 
   @Test

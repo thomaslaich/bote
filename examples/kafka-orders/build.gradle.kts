@@ -16,6 +16,6 @@ dependencies {
     implementation(project(":"))
 
     // The AsyncAPI codegen plugin — placing it on the build classpath makes
-    // the "asyncapi-codegen" smithy-build plugin discoverable.
-    add("smithyBuild", project(":codegen:smithy-asyncapi-codegen"))
+    // the "asyncapi" smithy-build plugin discoverable.
+    add("smithyBuild", project(":codegen:smithy-asyncapi"))
 }

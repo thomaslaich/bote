@@ -23,7 +23,7 @@ dependencies {
 }
 
 base {
-    archivesName = "smithy-asyncapi-codegen"
+    archivesName = "smithy-asyncapi"
 }
 
 java {
@@ -45,7 +45,7 @@ version = "0.1.0-SNAPSHOT"
 publishing {
     publications {
         create<MavenPublication>("mavenJava") {
-            artifactId = "smithy-asyncapi-codegen"
+            artifactId = "smithy-asyncapi"
             from(components["java"])
         }
     }

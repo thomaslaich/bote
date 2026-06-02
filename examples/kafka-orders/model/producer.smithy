@@ -6,7 +6,7 @@ $version: "2"
 namespace orders.producer
 
 use bote#channel
-use bote#messaging
+use bote#kafkaJson
 use bote#send
 use orders.shared#OrderCancelled
 use orders.shared#OrderPlaced
@@ -15,7 +15,7 @@ use orders.shared#OrdersTopic
 
 /// The order service: emits order lifecycle events to the orders topic.
 @title("Order Service API")
-@messaging
+@kafkaJson
 service OrderService {
     version: "1.0.0"
     operations: [

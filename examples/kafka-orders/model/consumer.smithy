@@ -8,7 +8,7 @@ $version: "2"
 namespace orders.consumer
 
 use bote#channel
-use bote#messaging
+use bote#kafkaJson
 use bote#receive
 use orders.shared#OrderCancelled
 use orders.shared#OrderShipped
@@ -16,7 +16,7 @@ use orders.shared#OrdersTopic
 
 /// A fulfilment dashboard: tracks orders once they leave "placed".
 @title("Fulfilment Dashboard API")
-@messaging
+@kafkaJson
 service FulfilmentDashboard {
     version: "1.0.0"
     operations: [

@@ -27,13 +27,13 @@ import software.amazon.smithy.model.traits.StreamingTrait;
 import software.amazon.smithy.model.traits.TitleTrait;
 
 /**
- * Converts a single bote-annotated Smithy service into an AsyncAPI 3.1.0 document.
+ * Converts one or more bote-annotated Smithy services into an AsyncAPI 3.1.0 document.
  *
  * <p>The mapping mirrors AsyncAPI's send/receive vocabulary, which bote's
  * {@code @send}/{@code @receive} traits were modelled on:
  *
  * <ul>
- *   <li>{@code @messaging} service -&gt; the AsyncAPI document
+ *   <li>bote protocol service(s) -&gt; the AsyncAPI document
  *   <li>{@code @kafkaTopic}/{@code @redisStream}/{@code @redisChannel} -&gt; a channel
  *   <li>{@code @send}/{@code @receive} -&gt; an operation with action send/receive
  *   <li>each message value structure -&gt; a component message + JSON Schema payload
@@ -48,7 +48,6 @@ final class AsyncApiConverter {
   private static final String KAFKA_BINDING_VERSION = "0.5.0";
   private static final String SCHEMAS_POINTER = "#/components/schemas";
 
-  private static final ShapeId MESSAGING = ShapeId.from("bote#messaging");
   private static final ShapeId KAFKA_JSON = ShapeId.from("bote#kafkaJson");
   private static final ShapeId KAFKA_AVRO = ShapeId.from("bote#kafkaAvro");
   private static final ShapeId KAFKA_PROTOBUF = ShapeId.from("bote#kafkaProtobuf");
@@ -65,25 +64,33 @@ final class AsyncApiConverter {
   private static final ShapeId RECEIVE = ShapeId.from("bote#receive");
 
   private final Model model;
-  private final ServiceShape service;
-  private final String contentType;
+  private final List<ServiceShape> services;
+  private final Optional<String> title;
+  private final String defaultContentType;
 
   // Message shapes referenced by this service, in first-seen order.
   private final Set<ShapeId> messageShapes = new LinkedHashSet<>();
+  // Message shape -> content type inherited from the first service that references it.
+  private final Map<ShapeId, String> messageContentTypes = new LinkedHashMap<>();
   // topic name -> accumulated channel state.
   private final Map<String, Channel> channels = new LinkedHashMap<>();
   // operation name -> operation object.
   private final Map<String, Node> operations = new LinkedHashMap<>();
 
   AsyncApiConverter(Model model, ServiceShape service) {
+    this(model, List.of(service), Optional.empty());
+  }
+
+  AsyncApiConverter(Model model, List<ServiceShape> services, Optional<String> title) {
     this.model = model;
-    this.service = service;
-    this.contentType = contentTypeFor(service);
+    this.services = List.copyOf(services);
+    this.title = title;
+    this.defaultContentType = defaultContentTypeFor(services);
   }
 
   /** Returns true if the service carries any bote messaging protocol trait. */
   static boolean isBoteService(ServiceShape service) {
-    return service.hasTrait(MESSAGING) || isKafkaService(service) || isRedisService(service);
+    return isKafkaService(service) || isRedisService(service);
   }
 
   private static boolean isRedisService(ServiceShape service) {
@@ -98,15 +105,6 @@ final class AsyncApiConverter {
   }
 
   private static String contentTypeFor(ServiceShape service) {
-    Optional<String> defaultContentType =
-        service
-            .findTrait(MESSAGING)
-            .map(t -> t.toNode().expectObjectNode())
-            .flatMap(n -> n.getStringMember("defaultContentType"))
-            .map(n -> n.getValue());
-    if (defaultContentType.isPresent()) {
-      return defaultContentType.get();
-    }
     if (service.hasTrait(KAFKA_AVRO)) {
       return "application/avro";
     }
@@ -116,20 +114,31 @@ final class AsyncApiConverter {
     return "application/json";
   }
 
+  private static String defaultContentTypeFor(List<ServiceShape> services) {
+    return services.stream()
+        .map(AsyncApiConverter::contentTypeFor)
+        .distinct()
+        .findFirst()
+        .orElse("application/json");
+  }
+
   ObjectNode convert() {
-    for (ShapeId operationId : service.getAllOperations()) {
-      OperationShape operation = model.expectShape(operationId, OperationShape.class);
-      if (operation.hasTrait(SEND)) {
-        addOperation(operation, "send", set(operation.getInputShape()));
-      } else if (operation.hasTrait(RECEIVE)) {
-        addOperation(operation, "receive", receivedMessages(operation));
+    for (ServiceShape service : services) {
+      String contentType = contentTypeFor(service);
+      for (ShapeId operationId : service.getAllOperations()) {
+        OperationShape operation = model.expectShape(operationId, OperationShape.class);
+        if (operation.hasTrait(SEND)) {
+          addOperation(operation, "send", set(operation.getInputShape()), contentType);
+        } else if (operation.hasTrait(RECEIVE)) {
+          addOperation(operation, "receive", receivedMessages(operation), contentType);
+        }
       }
     }
 
     return Node.objectNodeBuilder()
         .withMember("asyncapi", ASYNCAPI_VERSION)
         .withMember("info", buildInfo())
-        .withMember("defaultContentType", contentType)
+        .withMember("defaultContentType", defaultContentType)
         .withMember("channels", buildChannels())
         .withMember("operations", buildOperations())
         .withMember("components", buildComponents())
@@ -138,7 +147,8 @@ final class AsyncApiConverter {
 
   // -- operations & channels ---------------------------------------------
 
-  private void addOperation(OperationShape operation, String action, Set<ShapeId> messages) {
+  private void addOperation(
+      OperationShape operation, String action, Set<ShapeId> messages, String contentType) {
     // Every operation binds to a marker channel shape via @channel. The shape owns the address and
     // (where the broker has one) the binding and description. The message set is inferred from the
     // operations that bind to it.
@@ -157,10 +167,11 @@ final class AsyncApiConverter {
             });
     for (ShapeId messageId : messages) {
       messageShapes.add(messageId);
+      messageContentTypes.putIfAbsent(messageId, contentType);
       channel.messages.add(messageId);
     }
     operations.put(
-        operation.getId().getName(), operationNode(operation, action, address, messages));
+        operationName(operation), operationNode(operation, action, address, messages));
   }
 
   /**
@@ -302,7 +313,8 @@ final class AsyncApiConverter {
         Node.objectNodeBuilder()
             .withMember("name", name)
             .withMember("title", name)
-            .withMember("contentType", contentType)
+            .withMember(
+                "contentType", messageContentTypes.getOrDefault(messageId, defaultContentType))
             .withMember("payload", ref(SCHEMAS_POINTER + "/" + name));
 
     documentation(structure).ifPresent(doc -> message.withMember("summary", doc));
@@ -389,15 +401,20 @@ final class AsyncApiConverter {
   // -- info ---------------------------------------------------------------
 
   private Node buildInfo() {
-    String version = service.getVersion().isEmpty() ? "1.0.0" : service.getVersion();
+    ServiceShape first = services.get(0);
+    String version = first.getVersion().isEmpty() ? "1.0.0" : first.getVersion();
     String title =
-        service
-            .getTrait(TitleTrait.class)
-            .map(TitleTrait::getValue)
-            .orElseGet(() -> service.getId().getName());
+        this.title.orElseGet(
+            () ->
+                first
+                    .getTrait(TitleTrait.class)
+                    .map(TitleTrait::getValue)
+                    .orElseGet(() -> first.getId().getName()));
     ObjectNode.Builder info =
         Node.objectNodeBuilder().withMember("title", title).withMember("version", version);
-    documentation(service).ifPresent(doc -> info.withMember("description", doc));
+    if (services.size() == 1) {
+      documentation(first).ifPresent(doc -> info.withMember("description", doc));
+    }
     return info.build();
   }
 
@@ -410,6 +427,22 @@ final class AsyncApiConverter {
   }
 
   // -- helpers ------------------------------------------------------------
+
+  private String operationName(OperationShape operation) {
+    String name = operation.getId().getName();
+    if (!operations.containsKey(name)) {
+      return name;
+    }
+    String qualified = operation.getId().getNamespace().replace('.', '_') + "_" + name;
+    if (!operations.containsKey(qualified)) {
+      return qualified;
+    }
+    int suffix = 2;
+    while (operations.containsKey(qualified + suffix)) {
+      suffix++;
+    }
+    return qualified + suffix;
+  }
 
   /** Resolves the marker channel shape an operation binds to. */
   private Shape channelShape(OperationShape operation) {

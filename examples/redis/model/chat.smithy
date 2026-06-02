@@ -6,9 +6,9 @@ $version: "2"
 namespace chat
 
 use bote#channel
-use bote#messaging
 use bote#receive
 use bote#redisStream
+use bote#redisStreamsJson
 use bote#send
 
 /// The chat-messages stream (channel). Its name and config are declared once here.
@@ -17,7 +17,7 @@ structure ChatMessagesStream {}
 
 /// A chat producer: posts messages to the chat stream.
 @title("Chat Producer API")
-@messaging
+@redisStreamsJson
 service ChatProducer {
     version: "1.0.0"
     operations: [
@@ -27,7 +27,7 @@ service ChatProducer {
 
 /// A chat consumer: reads messages from the chat stream.
 @title("Chat Consumer API")
-@messaging
+@redisStreamsJson
 service ChatConsumer {
     version: "1.0.0"
     operations: [

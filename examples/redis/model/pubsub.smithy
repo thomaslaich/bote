@@ -7,9 +7,9 @@ $version: "2"
 namespace presence
 
 use bote#channel
-use bote#messaging
 use bote#receive
 use bote#redisChannel
+use bote#redisPubSubJson
 use bote#send
 
 /// The presence channel. Pub/Sub is ephemeral, so the channel is just an address.
@@ -18,7 +18,7 @@ structure PresenceChannel {}
 
 /// Publishes user presence updates.
 @title("Presence Publisher API")
-@messaging
+@redisPubSubJson
 service PresencePublisher {
     version: "1.0.0"
     operations: [
@@ -28,7 +28,7 @@ service PresencePublisher {
 
 /// Subscribes to user presence updates.
 @title("Presence Subscriber API")
-@messaging
+@redisPubSubJson
 service PresenceSubscriber {
     version: "1.0.0"
     operations: [
