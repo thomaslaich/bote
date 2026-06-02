@@ -11,8 +11,8 @@ $version: "2"
 // underlying contract is shared.
 namespace smartylighting.device
 
+use bote#asyncApi
 use bote#channel
-use bote#kafkaJson
 use bote#receive
 use bote#send
 use smartylighting.shared#DimActionChannel
@@ -22,7 +22,7 @@ use smartylighting.shared#LightingMeasuredChannel
 
 /// The streetlight device firmware: reports measurements, obeys dim commands.
 @title("Streetlight Device API")
-@kafkaJson
+@asyncApi
 service StreetlightDevice {
     version: "1.0.0"
     operations: [

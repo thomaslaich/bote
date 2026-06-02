@@ -10,8 +10,8 @@ $version: "2"
 // operation actions are flipped.
 namespace smartylighting.backend
 
+use bote#asyncApi
 use bote#channel
-use bote#kafkaJson
 use bote#receive
 use bote#send
 use smartylighting.shared#DimActionChannel
@@ -21,7 +21,7 @@ use smartylighting.shared#LightingMeasuredChannel
 
 /// The streetlight-management backend: consumes measurements, issues dim commands.
 @title("Streetlights Backend API")
-@kafkaJson
+@asyncApi
 service StreetlightsBackend {
     version: "1.0.0"
     operations: [

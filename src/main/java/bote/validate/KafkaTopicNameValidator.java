@@ -13,11 +13,10 @@ import software.amazon.smithy.model.validation.ValidationEvent;
 /**
  * Validates that no two @kafkaTopic shapes declare the same topic name.
  *
- * <p>A Kafka topic is a single physical entity. With topics modelled as
- * first-class shapes, the durability/retention contract lives once on the shape,
- * so per-operation consistency no longer needs checking. What remains is that two
- * distinct channel shapes must not claim the same underlying topic name — that
- * would be two contracts for one topic.
+ * <p>A Kafka topic is a single physical entity. With topics modelled as first-class shapes, the
+ * durability/retention contract lives once on the shape, so per-operation consistency no longer
+ * needs checking. What remains is that two distinct channel shapes must not claim the same
+ * underlying topic name — that would be two contracts for one topic.
  */
 public final class KafkaTopicNameValidator extends AbstractValidator {
 

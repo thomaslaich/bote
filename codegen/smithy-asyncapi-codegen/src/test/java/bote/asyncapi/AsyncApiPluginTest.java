@@ -21,7 +21,7 @@ class AsyncApiPluginTest {
       """
       $version: "2"
       namespace test
-      use bote#kafkaJson
+      use bote#asyncApi
       use bote#kafkaTopic
       use bote#channel
       use bote#kafkaKey
@@ -33,10 +33,10 @@ class AsyncApiPluginTest {
       @kafkaTopic(name: "b")
       structure BTopic {}
 
-      @kafkaJson
+      @asyncApi
       service A { operations: [PubA] }
 
-      @kafkaJson
+      @asyncApi
       service B { operations: [PubB] }
 
       @send
@@ -54,7 +54,8 @@ class AsyncApiPluginTest {
       """;
 
   private Set<String> run(ObjectNode settings) {
-    Model model = Model.assembler().discoverModels().addUnparsedModel("t.smithy", MODEL).assemble().unwrap();
+    Model model =
+        Model.assembler().discoverModels().addUnparsedModel("t.smithy", MODEL).assemble().unwrap();
     MockManifest manifest = new MockManifest();
     PluginContext context =
         PluginContext.builder().model(model).fileManifest(manifest).settings(settings).build();

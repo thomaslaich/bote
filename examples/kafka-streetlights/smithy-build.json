@@ -1,0 +1,7 @@
+{
+    "version": "1.0",
+    "sources": ["model"],
+    "plugins": {
+        "asyncapi-codegen": {}
+    }
+}
