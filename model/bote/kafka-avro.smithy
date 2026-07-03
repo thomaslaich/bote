@@ -12,16 +12,19 @@ use smithy.api#protocolDefinition
 /// at runtime — the registry URL and credentials are not part of the
 /// contract and must not appear in the model.
 ///
-/// Operations in a service annotated with @kafkaAvro must use @invocation or
-/// @subscription and declare their topic with @kafkaTopic.
+/// Operations in a service annotated with @kafkaAvro must use @kafkaProduce
+/// or @kafkaConsume, which carry the topic.
+///
+/// Event discrimination is handled by the wire format itself: the schema ID
+/// prefix identifies the writer schema, and thus the event type, of every
+/// message. Multi-event channels require a subjectNamingStrategy that permits
+/// multiple schemas per topic (RECORD_NAME or TOPIC_RECORD_NAME).
 @protocolDefinition(
     traits: [
-        bote#kafkaTopic
-        bote#invocation
-        bote#subscription
+        bote#kafkaProduce
+        bote#kafkaConsume
         bote#event
         bote#command
-        bote#reply
         bote#kafkaKey
         bote#kafkaHeader
         bote#avroCompatibility

@@ -23,9 +23,8 @@ class AsyncApiPluginTest {
       $version: "2"
       namespace test
 use bote#kafkaJson
-use bote#kafkaTopic
+use bote#kafkaProduce
 use bote#kafkaKey
-use bote#invocation
 use bote#command
       @kafkaJson
       service A { operations: [PubA] }
@@ -33,12 +32,10 @@ use bote#command
 @kafkaJson
       service B { operations: [PubB] }
 
-@invocation
-@kafkaTopic(name: "a")
+@kafkaProduce(topic: "a")
       operation PubA { input: Payload }
 
-@invocation
-@kafkaTopic(name: "b")
+@kafkaProduce(topic: "b")
       operation PubB { input: Payload }
 
 @command
@@ -82,6 +79,15 @@ use bote#command
             .withMember("filename", "Grouped.asyncapi.json")
             .build();
     assertEquals(Set.of("Grouped.asyncapi.json"), run(settings));
+  }
+
+@Test
+  void invalidPerspectiveSettingFails() {
+    SmithyBuildException e =
+        assertThrows(
+            SmithyBuildException.class,
+            () -> run(Node.objectNodeBuilder().withMember("perspective", "broker").build()));
+    assertTrue(e.getMessage().contains("perspective"));
   }
 
 @Test

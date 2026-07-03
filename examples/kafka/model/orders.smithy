@@ -1,18 +1,16 @@
 $version: "2"
 
-// The order service contract: clients can submit order commands and subscribe
-// to order lifecycle events. Topics are declared directly on the operations.
+// The order service contract: clients can produce order commands and consume
+// order lifecycle events. Topics are carried by the broker operation traits.
 namespace examples.kafka.orders
 
 use bote#command
 use bote#event
-use bote#invocation
+use bote#kafkaConsume
 use bote#kafkaHeader
 use bote#kafkaJson
 use bote#kafkaKey
-use bote#kafkaTopic
-use bote#kafkaTopicConfig
-use bote#subscription
+use bote#kafkaProduce
 
 /// The order service API.
 @title("Order Service API")
@@ -20,28 +18,20 @@ use bote#subscription
 service OrderService {
     version: "1.0.0"
     operations: [
-        InvokeSubmitOrder
-        SubscribeToOrderEvents
+        SubmitOrder
+        ConsumeOrderEvents
     ]
 }
 
 /// Submit a new order for processing.
-@invocation
-@kafkaTopic(name: "orders.commands")
-operation InvokeSubmitOrder {
-    input: SubmitOrder
+@kafkaProduce(topic: "orders.commands")
+operation SubmitOrder {
+    input: SubmitOrderCommand
 }
 
-/// Subscribe to order lifecycle events.
-@subscription
-@kafkaTopic(name: "orders.events")
-@kafkaTopicConfig(
-    partitions: 6
-    replicationFactor: 3
-    retentionMs: 604800000
-    // 7 days
-)
-operation SubscribeToOrderEvents {
+/// Consume order lifecycle events.
+@kafkaConsume(topic: "orders.events")
+operation ConsumeOrderEvents {
     output := {
         events: OrderEvents
     }
@@ -49,7 +39,7 @@ operation SubscribeToOrderEvents {
 
 /// Command to submit a new order.
 @command
-structure SubmitOrder {
+structure SubmitOrderCommand {
     @kafkaKey
     orderId: String
 

@@ -1,14 +1,13 @@
 $version: "2"
 
-// Redis Pub/Sub example using operation-level channel addresses.
+// Redis Pub/Sub example: PUBLISH and SUBSCRIBE capabilities on one channel.
 namespace presence
 
 use bote#command
 use bote#event
-use bote#invocation
-use bote#redisChannel
 use bote#redisPubSubJson
-use bote#subscription
+use bote#redisPublish
+use bote#redisSubscribe
 
 /// Presence API: clients set their presence and subscribe to presence changes.
 @title("Presence API")
@@ -22,15 +21,13 @@ service Presence {
 }
 
 /// Set a user's presence.
-@invocation
-@redisChannel(name: "presence")
+@redisPublish(channel: "presence")
 operation SetPresence {
     input: SetPresenceCommand
 }
 
 /// Subscribe to presence changes on the presence channel.
-@subscription
-@redisChannel(name: "presence")
+@redisSubscribe(channel: "presence")
 operation SubscribeToPresence {
     output := {
         updates: PresenceSubscription

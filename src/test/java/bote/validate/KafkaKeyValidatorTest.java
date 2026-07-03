@@ -15,15 +15,13 @@ class KafkaKeyValidatorTest {
       $version: "2"
       namespace test
 use bote#kafkaJson
-use bote#invocation
-use bote#kafkaTopic
+use bote#kafkaProduce
 use bote#kafkaKey
 use bote#command
 
 @kafkaJson
       service TestService { operations: [Publish] }
-      @invocation
-      @kafkaTopic(name: "events")
+      @kafkaProduce(topic: "events")
       operation Publish { input: %s }
       """;
 

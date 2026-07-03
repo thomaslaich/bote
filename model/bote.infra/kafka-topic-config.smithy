@@ -1,12 +1,20 @@
 $version: "2"
 
-namespace bote
+namespace bote.infra
 
 use smithy.api#range
 
 /// Declares infrastructure configuration for a Kafka topic.
 ///
-/// Applied to the operation that declares the topic.
+/// Applied to the operation that declares the topic. Declare it on at most
+/// one operation per topic (validator-enforced).
+///
+/// This trait lives in bote.infra, not bote, because topic provisioning is
+/// not part of the message contract: the contract owner defines the commands
+/// and events, while a platform team may own partitions, replication, and
+/// retention. Keeping the namespaces separate lets the two be authored — and
+/// owned — independently, e.g. by attaching this trait from a separate model
+/// file with apply.
 ///
 /// These values are the authoritative specification of the topic's durability
 /// and retention contract. Code generators can use them to drive topic
@@ -14,7 +22,7 @@ use smithy.api#range
 /// configuration file.
 ///
 /// All fields are optional. Omitted fields inherit broker-level defaults.
-@trait(selector: "[trait|bote#kafkaTopic]")
+@trait(selector: ":is([trait|bote#kafkaProduce], [trait|bote#kafkaConsume])")
 structure kafkaTopicConfig {
     /// Number of partitions.
     ///

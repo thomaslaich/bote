@@ -19,16 +19,13 @@ use smithy.api#protocolDefinition
 /// the registry URL and credentials are runtime configuration and must
 /// not appear in the model.
 ///
-/// Operations must use @invocation or @subscription and declare their topic with
-/// @kafkaTopic.
+/// Operations must use @kafkaProduce or @kafkaConsume, which carry the topic.
 @protocolDefinition(
     traits: [
-        bote#kafkaTopic
-        bote#invocation
-        bote#subscription
+        bote#kafkaProduce
+        bote#kafkaConsume
         bote#event
         bote#command
-        bote#reply
         bote#kafkaKey
         bote#kafkaHeader
         alloy.proto#protoIndex

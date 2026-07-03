@@ -6,45 +6,35 @@ namespace examples.kafka.streetlights
 
 use bote#command
 use bote#event
-use bote#invocation
+use bote#kafkaConsume
 use bote#kafkaHeader
 use bote#kafkaJson
 use bote#kafkaKey
-use bote#kafkaTopic
-use bote#kafkaTopicConfig
-use bote#subscription
+use bote#kafkaProduce
 
-/// The streetlight device API: clients subscribe to lighting events and invoke dimming.
+/// The streetlight device API: clients consume lighting events and produce dim commands.
 @title("Streetlight Device API")
 @kafkaJson
 service StreetlightDevice {
     version: "1.0.0"
     operations: [
-        SubscribeToLightingEvents
-        InvokeDimLight
+        ConsumeLightingEvents
+        DimLight
     ]
 }
 
-/// Subscribe to environmental lighting events reported by streetlights.
-@subscription
-@kafkaTopic(name: "smartylighting.streetlights.lighting.measured")
-@kafkaTopicConfig(
-    partitions: 6
-    replicationFactor: 3
-    retentionMs: 604800000
-    // 7 days
-)
-operation SubscribeToLightingEvents {
+/// Consume environmental lighting events reported by streetlights.
+@kafkaConsume(topic: "smartylighting.streetlights.lighting.measured")
+operation ConsumeLightingEvents {
     output := {
         events: LightMeasuredStream
     }
 }
 
 /// Dim a streetlight.
-@invocation
-@kafkaTopic(name: "smartylighting.streetlights.action.dim")
-operation InvokeDimLight {
-    input: DimLight
+@kafkaProduce(topic: "smartylighting.streetlights.action.dim")
+operation DimLight {
+    input: DimLightCommand
 }
 
 /// Light intensity reported by a streetlight.
@@ -68,7 +58,7 @@ structure LightMeasured {
 
 /// Command a particular streetlight to dim the lights.
 @command
-structure DimLight {
+structure DimLightCommand {
     @kafkaKey
     streetlightId: String
 

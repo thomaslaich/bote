@@ -29,16 +29,25 @@ import software.amazon.smithy.model.traits.TitleTrait;
 /**
  * Converts one or more bote-annotated Smithy services into an AsyncAPI 3.1.0 document.
  *
- * <p>The mapping keeps bote's contract vocabulary while emitting AsyncAPI's send/receive actions:
+ * <p>AsyncAPI 3 actions describe the application the document is about, so the mapping depends on
+ * the chosen {@link Perspective}. With the default OWNER perspective the document describes the
+ * contract owner: produce-side operations ({@code @kafkaProduce}, {@code @redisStreamAdd},
+ * {@code @redisPublish} — the owner accepts commands) become {@code action: receive}, and
+ * consume-side operations ({@code @kafkaConsume}, {@code @redisStreamRead},
+ * {@code @redisSubscribe} — the owner emits events) become {@code action: send}. The CLIENT
+ * perspective flips both.
  *
  * <ul>
  *   <li>bote protocol service(s) -&gt; the AsyncAPI document
- *   <li>{@code @kafkaTopic}/{@code @redisStream}/{@code @redisChannel} -&gt; a channel
- *   <li>{@code @invocation}/{@code @subscription} -&gt; an operation with action send/receive
+ *   <li>the broker operation trait's address (topic / stream / channel) -&gt; a channel
+ *   <li>a broker operation trait -&gt; an operation (action per perspective)
  *   <li>each message value structure -&gt; a component message + JSON Schema payload
+ *   <li>event messages -&gt; payload/headers per the protocol's event discrimination (ENVELOPE
+ *       wraps the payload in a single-key object; HEADER adds a "bote-type" header)
  *   <li>{@code @kafkaKey} -&gt; the Kafka message binding key
- *   <li>{@code @kafkaHeader} -&gt; the message headers schema
- *   <li>{@code @kafkaTopicConfig} -&gt; Kafka channel binding partitions/replicas/config
+ *   <li>{@code @kafkaHeader} -&gt; the message headers schema; header members are stripped from
+ *       payload schemas because they travel only as Kafka headers
+ *   <li>{@code @bote.infra#kafkaTopicConfig} -&gt; Kafka channel binding partitions/replicas/config
  * </ul>
  */
 final class AsyncApiConverter {
@@ -46,43 +55,82 @@ final class AsyncApiConverter {
   private static final String ASYNCAPI_VERSION = "3.1.0";
   private static final String KAFKA_BINDING_VERSION = "0.5.0";
   private static final String SCHEMAS_POINTER = "#/components/schemas";
+  private static final String TYPE_HEADER_NAME = "bote-type";
 
   private static final ShapeId KAFKA_JSON = ShapeId.from("bote#kafkaJson");
   private static final ShapeId KAFKA_AVRO = ShapeId.from("bote#kafkaAvro");
   private static final ShapeId KAFKA_PROTOBUF = ShapeId.from("bote#kafkaProtobuf");
-  private static final ShapeId KAFKA_TOPIC = ShapeId.from("bote#kafkaTopic");
-  private static final ShapeId KAFKA_TOPIC_CONFIG = ShapeId.from("bote#kafkaTopicConfig");
+  private static final ShapeId KAFKA_TOPIC_CONFIG = ShapeId.from("bote.infra#kafkaTopicConfig");
   private static final ShapeId KAFKA_KEY = ShapeId.from("bote#kafkaKey");
   private static final ShapeId KAFKA_HEADER = ShapeId.from("bote#kafkaHeader");
   private static final ShapeId REDIS_STREAMS_JSON = ShapeId.from("bote#redisStreamsJson");
   private static final ShapeId REDIS_PUBSUB_JSON = ShapeId.from("bote#redisPubSubJson");
-  private static final ShapeId REDIS_STREAM = ShapeId.from("bote#redisStream");
-  private static final ShapeId REDIS_CHANNEL = ShapeId.from("bote#redisChannel");
-  private static final ShapeId INVOCATION = ShapeId.from("bote#invocation");
-  private static final ShapeId SUBSCRIPTION = ShapeId.from("bote#subscription");
+  private static final ShapeId KAFKA_PRODUCE = ShapeId.from("bote#kafkaProduce");
+  private static final ShapeId KAFKA_CONSUME = ShapeId.from("bote#kafkaConsume");
+  private static final ShapeId REDIS_STREAM_ADD = ShapeId.from("bote#redisStreamAdd");
+  private static final ShapeId REDIS_STREAM_READ = ShapeId.from("bote#redisStreamRead");
+  private static final ShapeId REDIS_PUBLISH = ShapeId.from("bote#redisPublish");
+  private static final ShapeId REDIS_SUBSCRIBE = ShapeId.from("bote#redisSubscribe");
+
+  private static final List<ShapeId> PRODUCE_TRAITS =
+      List.of(KAFKA_PRODUCE, REDIS_STREAM_ADD, REDIS_PUBLISH);
+  private static final List<ShapeId> CONSUME_TRAITS =
+      List.of(KAFKA_CONSUME, REDIS_STREAM_READ, REDIS_SUBSCRIBE);
+
+  /** Broker operation trait -> the member of the trait carrying the channel address. */
+  private static final Map<ShapeId, String> ADDRESS_MEMBERS =
+      Map.of(
+          KAFKA_PRODUCE, "topic",
+          KAFKA_CONSUME, "topic",
+          REDIS_STREAM_ADD, "stream",
+          REDIS_STREAM_READ, "stream",
+          REDIS_PUBLISH, "channel",
+          REDIS_SUBSCRIBE, "channel");
+
+  /** Whose viewpoint the generated document takes. */
+  enum Perspective {
+    /** The document describes the contract owner: it receives commands and sends events. */
+    OWNER,
+    /** The document describes a client: it sends commands and receives events. */
+    CLIENT
+  }
+
+  /** How a protocol identifies event types on a multi-event channel. */
+  private enum Discrimination {
+    ENVELOPE,
+    HEADER,
+    NONE
+  }
 
   private final Model model;
   private final List<ServiceShape> services;
   private final Optional<String> title;
+  private final Perspective perspective;
   private final String defaultContentType;
 
   // Message shapes referenced by this service, in first-seen order.
   private final Set<ShapeId> messageShapes = new LinkedHashSet<>();
   // Message shape -> content type inherited from the first service that references it.
   private final Map<ShapeId, String> messageContentTypes = new LinkedHashMap<>();
+  // Event shape -> envelope key (streaming union member name), for ENVELOPE discrimination.
+  private final Map<ShapeId, String> envelopeNames = new LinkedHashMap<>();
+  // Event shape -> type header value (streaming union member name), for HEADER discrimination.
+  private final Map<ShapeId, String> typeHeaderNames = new LinkedHashMap<>();
   // topic name -> accumulated channel state.
   private final Map<String, Channel> channels = new LinkedHashMap<>();
   // operation name -> operation object.
   private final Map<String, Node> operations = new LinkedHashMap<>();
 
   AsyncApiConverter(Model model, ServiceShape service) {
-    this(model, List.of(service), Optional.empty());
+    this(model, List.of(service), Optional.empty(), Perspective.OWNER);
   }
 
-  AsyncApiConverter(Model model, List<ServiceShape> services, Optional<String> title) {
+  AsyncApiConverter(
+      Model model, List<ServiceShape> services, Optional<String> title, Perspective perspective) {
     this.model = model;
     this.services = List.copyOf(services);
     this.title = title;
+    this.perspective = perspective;
     this.defaultContentType = defaultContentTypeFor(services);
   }
 
@@ -120,15 +168,37 @@ final class AsyncApiConverter {
         .orElse("application/json");
   }
 
+  /** The event discrimination mode of a service's protocol. */
+  private static Discrimination discriminationFor(ServiceShape service) {
+    if (service.hasTrait(KAFKA_JSON)) {
+      return service
+          .findTrait(KAFKA_JSON)
+          .map(t -> t.toNode().expectObjectNode())
+          .flatMap(n -> n.getStringMember("eventDiscrimination"))
+          .map(s -> Discrimination.valueOf(s.getValue()))
+          .orElse(Discrimination.ENVELOPE);
+    }
+    if (isRedisService(service)) {
+      return Discrimination.ENVELOPE;
+    }
+    // Avro / Protobuf: the wire format (schema ID, proto descriptor) types the message.
+    return Discrimination.NONE;
+  }
+
   ObjectNode convert() {
     for (ServiceShape service : services) {
       String contentType = contentTypeFor(service);
+      Discrimination discrimination = discriminationFor(service);
       for (ShapeId operationId : service.getAllOperations()) {
         OperationShape operation = model.expectShape(operationId, OperationShape.class);
-        if (operation.hasTrait(INVOCATION)) {
-          addOperation(operation, "send", set(operation.getInputShape()), contentType);
-        } else if (operation.hasTrait(SUBSCRIPTION)) {
-          addOperation(operation, "receive", receivedMessages(operation), contentType);
+        if (PRODUCE_TRAITS.stream().anyMatch(operation::hasTrait)) {
+          String action = perspective == Perspective.OWNER ? "receive" : "send";
+          Map<ShapeId, String> messages = new LinkedHashMap<>();
+          messages.put(operation.getInputShape(), null);
+          addOperation(operation, action, messages, contentType, discrimination);
+        } else if (CONSUME_TRAITS.stream().anyMatch(operation::hasTrait)) {
+          String action = perspective == Perspective.OWNER ? "send" : "receive";
+          addOperation(operation, action, receivedMessages(operation), contentType, discrimination);
         }
       }
     }
@@ -146,37 +216,38 @@ final class AsyncApiConverter {
   // -- operations & channels ---------------------------------------------
 
   private void addOperation(
-      OperationShape operation, String action, Set<ShapeId> messages, String contentType) {
-    Shape channelSource = operation;
-    String address = channelAddress(channelSource);
+      OperationShape operation,
+      String action,
+      Map<ShapeId, String> messages,
+      String contentType,
+      Discrimination discrimination) {
+    String address = channelAddress(operation);
     Channel channel =
-        channels.computeIfAbsent(
-            address,
-            a -> {
-              Channel created =
-                  new Channel(
-                      a,
-                      channelBindings(a, channelSource),
-                      channelSource.getId().equals(operation.getId())
-                          ? null
-                          : documentation(channelSource).orElse(null));
-              return created;
-            });
-    for (ShapeId messageId : messages) {
+        channels.computeIfAbsent(address, a -> new Channel(a, channelBindings(a, operation)));
+    for (Map.Entry<ShapeId, String> message : messages.entrySet()) {
+      ShapeId messageId = message.getKey();
+      String memberName = message.getValue();
       messageShapes.add(messageId);
       messageContentTypes.putIfAbsent(messageId, contentType);
+      if (memberName != null) {
+        if (discrimination == Discrimination.ENVELOPE) {
+          envelopeNames.putIfAbsent(messageId, memberName);
+        } else if (discrimination == Discrimination.HEADER) {
+          typeHeaderNames.putIfAbsent(messageId, memberName);
+        }
+      }
       channel.messages.add(messageId);
     }
     operations.put(
-        operationName(operation), operationNode(operation, action, address, messages));
+        operationName(operation), operationNode(operation, action, address, messages.keySet()));
   }
 
   /**
-   * A subscription operation's output contains a member targeting a {@code @streaming} union; each
-   * union member is a possible message type.
+   * A consume operation's output contains a member targeting a {@code @streaming} union; each
+   * union member is a possible message type, keyed here by its member name (the wire-level tag).
    */
-  private Set<ShapeId> receivedMessages(OperationShape operation) {
-    Set<ShapeId> result = new LinkedHashSet<>();
+  private Map<ShapeId, String> receivedMessages(OperationShape operation) {
+    Map<ShapeId, String> result = new LinkedHashMap<>();
     operation
         .getOutput()
         .flatMap(id -> model.getShape(id).flatMap(Shape::asStructureShape))
@@ -190,7 +261,7 @@ final class AsyncApiConverter {
                     .ifPresent(
                         union -> {
                           for (MemberShape um : union.getAllMembers().values()) {
-                            result.add(um.getTarget());
+                            result.putIfAbsent(um.getTarget(), um.getMemberName());
                           }
                         });
               }
@@ -228,16 +299,14 @@ final class AsyncApiConverter {
       if (channel.bindings != null) {
         channelNode.withMember("bindings", channel.bindings);
       }
-      if (channel.description != null) {
-        channelNode.withMember("description", channel.description);
-      }
       builder.withMember(channel.topic, channelNode.build());
     }
     return builder.build();
   }
 
   /**
-   * The Kafka channel binding, derived once from the topic shape's @kafkaTopic/@kafkaTopicConfig.
+   * The Kafka channel binding, derived once from the operation's Kafka trait and
+   * {@code @kafkaTopicConfig}.
    */
   private Node kafkaChannelBindings(String topic, Shape topicShape) {
     ObjectNode.Builder kafka =
@@ -261,9 +330,7 @@ final class AsyncApiConverter {
     }
 
     boolean compacted =
-        topicShape
-            .findTrait(KAFKA_TOPIC)
-            .map(t -> t.toNode().expectObjectNode())
+        kafkaOperationTrait(topicShape)
             .flatMap(n -> n.getBooleanMember("compacted"))
             .map(b -> b.getValue())
             .orElse(false);
@@ -312,7 +379,7 @@ final class AsyncApiConverter {
             .withMember("title", name)
             .withMember(
                 "contentType", messageContentTypes.getOrDefault(messageId, defaultContentType))
-            .withMember("payload", ref(SCHEMAS_POINTER + "/" + name));
+            .withMember("payload", buildPayload(messageId));
 
     documentation(structure).ifPresent(doc -> message.withMember("summary", doc));
 
@@ -330,12 +397,29 @@ final class AsyncApiConverter {
                                 .build())
                         .build()));
 
-    Node headers = buildHeaders(structure);
+    Node headers = buildHeaders(messageId, structure);
     if (headers != null) {
       message.withMember("headers", headers);
     }
 
     return message.build();
+  }
+
+  /**
+   * The message payload schema: a bare schema reference, or — for ENVELOPE-discriminated events —
+   * the single-key wrapper object keyed by the streaming union member name.
+   */
+  private Node buildPayload(ShapeId messageId) {
+    Node bare = ref(SCHEMAS_POINTER + "/" + messageId.getName());
+    String envelopeKey = envelopeNames.get(messageId);
+    if (envelopeKey == null) {
+      return bare;
+    }
+    return Node.objectNodeBuilder()
+        .withMember("type", "object")
+        .withMember("properties", Node.objectNodeBuilder().withMember(envelopeKey, bare).build())
+        .withMember("required", ArrayNode.builder().withValue(envelopeKey).build())
+        .build();
   }
 
   private Optional<MemberShape> keyMember(StructureShape structure) {
@@ -344,9 +428,21 @@ final class AsyncApiConverter {
         .findFirst();
   }
 
-  private Node buildHeaders(StructureShape structure) {
+  private Node buildHeaders(ShapeId messageId, StructureShape structure) {
     ObjectNode.Builder properties = Node.objectNodeBuilder();
     boolean any = false;
+
+    String typeHeader = typeHeaderNames.get(messageId);
+    if (typeHeader != null) {
+      properties.withMember(
+          TYPE_HEADER_NAME,
+          Node.objectNodeBuilder()
+              .withMember("type", "string")
+              .withMember("const", typeHeader)
+              .build());
+      any = true;
+    }
+
     for (MemberShape member : structure.getAllMembers().values()) {
       Optional<String> headerName =
           member
@@ -390,9 +486,60 @@ final class AsyncApiConverter {
     ObjectNode.Builder schemas = Node.objectNodeBuilder();
     for (Map.Entry<String, Schema> entry : document.getDefinitions().entrySet()) {
       String name = entry.getKey().substring(SCHEMAS_POINTER.length() + 1);
-      schemas.withMember(name, entry.getValue().toNode());
+      schemas.withMember(name, stripHeaderMembers(name, entry.getValue().toNode(), closure));
     }
     return schemas.build();
+  }
+
+  /**
+   * Removes {@code @kafkaHeader}-bound properties from a structure's payload schema: header
+   * members travel only as Kafka headers, never in the serialized value.
+   */
+  private Node stripHeaderMembers(String schemaName, Node schemaNode, Set<ShapeId> closure) {
+    Optional<StructureShape> structure =
+        closure.stream()
+            .filter(id -> id.getName().equals(schemaName))
+            .findFirst()
+            .flatMap(model::getShape)
+            .flatMap(Shape::asStructureShape);
+    if (structure.isEmpty() || !schemaNode.isObjectNode()) {
+      return schemaNode;
+    }
+
+    Set<String> headerMembers = new LinkedHashSet<>();
+    for (MemberShape member : structure.get().getAllMembers().values()) {
+      if (member.hasTrait(KAFKA_HEADER)) {
+        headerMembers.add(member.getMemberName());
+      }
+    }
+    if (headerMembers.isEmpty()) {
+      return schemaNode;
+    }
+
+    ObjectNode schema = schemaNode.expectObjectNode();
+    Optional<ObjectNode> properties = schema.getObjectMember("properties");
+    if (properties.isPresent()) {
+      ObjectNode updated = properties.get();
+      for (String headerMember : headerMembers) {
+        updated = updated.withoutMember(headerMember);
+      }
+      schema = schema.withMember("properties", updated);
+    }
+    Optional<Node> required = schema.getMember("required");
+    if (required.isPresent() && required.get().isArrayNode()) {
+      ArrayNode.Builder remaining = ArrayNode.builder();
+      for (Node element : required.get().expectArrayNode().getElements()) {
+        if (!headerMembers.contains(element.expectStringNode().getValue())) {
+          remaining.withValue(element);
+        }
+      }
+      ArrayNode remainingNode = remaining.build();
+      schema =
+          remainingNode.isEmpty()
+              ? schema.withoutMember("required")
+              : schema.withMember("required", remainingNode);
+    }
+    return schema;
   }
 
   // -- info ---------------------------------------------------------------
@@ -441,24 +588,32 @@ final class AsyncApiConverter {
     return qualified + suffix;
   }
 
-  /** The channel address, read from whichever broker address trait the operation carries. */
+  /** The channel address, read from whichever broker operation trait the operation carries. */
   private String channelAddress(Shape channelShape) {
-    for (ShapeId addressTrait : List.of(KAFKA_TOPIC, REDIS_STREAM, REDIS_CHANNEL)) {
+    for (Map.Entry<ShapeId, String> entry : ADDRESS_MEMBERS.entrySet()) {
       Optional<String> name =
           channelShape
-              .findTrait(addressTrait)
-              .map(t -> t.toNode().expectObjectNode().expectStringMember("name").getValue());
+              .findTrait(entry.getKey())
+              .map(t -> t.toNode().expectObjectNode().expectStringMember(entry.getValue()).getValue());
       if (name.isPresent()) {
         return name.get();
       }
     }
     throw new IllegalStateException(
-        "Operation " + channelShape.getId() + " has no broker address trait");
+        "Operation " + channelShape.getId() + " has no broker operation trait");
+  }
+
+  /** The Kafka operation trait's value node, if the operation carries one. */
+  private Optional<ObjectNode> kafkaOperationTrait(Shape channelShape) {
+    return channelShape
+        .findTrait(KAFKA_PRODUCE)
+        .or(() -> channelShape.findTrait(KAFKA_CONSUME))
+        .map(t -> t.toNode().expectObjectNode());
   }
 
   /** The channel's protocol binding, or null where the broker has no standard AsyncAPI binding. */
   private Node channelBindings(String address, Shape channelShape) {
-    if (channelShape.hasTrait(KAFKA_TOPIC)) {
+    if (kafkaOperationTrait(channelShape).isPresent()) {
       return kafkaChannelBindings(address, channelShape);
     }
     return null; // Redis has no standard AsyncAPI channel binding.
@@ -499,23 +654,15 @@ final class AsyncApiConverter {
     return Node.objectNodeBuilder().withMember("$ref", pointer).build();
   }
 
-  private static Set<ShapeId> set(ShapeId id) {
-    Set<ShapeId> single = new LinkedHashSet<>();
-    single.add(id);
-    return single;
-  }
-
   /** One channel (a Kafka topic or Redis address), accumulated from operation address traits. */
   private static final class Channel {
     private final String topic;
     private final Node bindings;
-    private final String description;
     private final Set<ShapeId> messages = new LinkedHashSet<>();
 
-    Channel(String topic, Node bindings, String description) {
+    Channel(String topic, Node bindings) {
       this.topic = topic;
       this.bindings = bindings;
-      this.description = description;
     }
   }
 }

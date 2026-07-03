@@ -20,11 +20,11 @@ import software.amazon.smithy.model.validation.ValidationEvent;
  * <p>The message key uniquely identifies a record within a topic and determines which partition it
  * is routed to. Having more than one key member is ambiguous and is therefore an error.
  *
- * <p>Only structures used as inputs of @invocation operations are checked.
+ * <p>Only structures used as inputs of @kafkaProduce operations are checked.
  */
 public final class KafkaKeyValidator extends AbstractValidator {
 
-  private static final ShapeId INVOCATION = ShapeId.from("bote#invocation");
+  private static final ShapeId KAFKA_PRODUCE = ShapeId.from("bote#kafkaProduce");
   private static final ShapeId KAFKA_KEY = ShapeId.from("bote#kafkaKey");
 
   @Override
@@ -34,7 +34,7 @@ public final class KafkaKeyValidator extends AbstractValidator {
     Set<ShapeId> messageStructures = new HashSet<>();
 
     for (OperationShape operation : model.getOperationShapes()) {
-      if (operation.hasTrait(INVOCATION)) {
+      if (operation.hasTrait(KAFKA_PRODUCE)) {
         operation.getInput().ifPresent(messageStructures::add);
       }
     }

@@ -18,18 +18,17 @@ class AsyncApiConverterTest {
       namespace test
 
 use bote#kafkaJson
-use bote#kafkaTopic
-use bote#kafkaTopicConfig
+use bote#kafkaProduce
+use bote#kafkaConsume
+use bote.infra#kafkaTopicConfig
 use bote#kafkaKey
 use bote#kafkaHeader
 use bote#redisPubSubJson
-      use bote#redisChannel
-      use bote#invocation
-use bote#subscription
-use bote#command
+      use bote#redisPublish
+      use bote#command
 use bote#event
 
-      /// Invokes order commands and subscribes to order events.
+      /// Produces order commands and consumes order events.
 @title("Order Events API")
 @kafkaJson
       service OrderService {
@@ -43,24 +42,19 @@ use bote#event
           operations: [SetPresence]
       }
 
-      @invocation
-      @kafkaTopic(name: "orders")
+      @kafkaProduce(topic: "orders")
       @kafkaTopicConfig(partitions: 12, replicationFactor: 3, minInsyncReplicas: 2)
       operation PublishOrder { input: SubmitOrder }
 
-      @subscription
-      @kafkaTopic(name: "orders")
-      @kafkaTopicConfig(partitions: 12, replicationFactor: 3, minInsyncReplicas: 2)
+      @kafkaConsume(topic: "orders")
       operation ConsumeOrders {
           output := { events: OrderEventStream }
       }
 
-@invocation
-@kafkaTopic(name: "order-state", compacted: true)
+@kafkaProduce(topic: "order-state", compacted: true)
       operation PublishState { input: SetOrderState }
 
-@invocation
-@redisChannel(name: "presence")
+@redisPublish(channel: "presence")
       operation SetPresence { input: SetPresenceCommand }
 
 @streaming
@@ -97,29 +91,37 @@ use bote#event
       }
       """;
 
+  private Model assembleModel(String source) {
+    return Model.assembler()
+        .discoverModels()
+        .addUnparsedModel("test.smithy", source)
+        .assemble()
+        .unwrap();
+  }
+
   private ObjectNode convert() {
-    Model model =
-        Model.assembler()
-            .discoverModels()
-            .addUnparsedModel("test.smithy", MODEL)
-            .assemble()
-            .unwrap();
+    return convert(AsyncApiConverter.Perspective.OWNER);
+  }
+
+  private ObjectNode convert(AsyncApiConverter.Perspective perspective) {
+    Model model = assembleModel(MODEL);
     ServiceShape service = model.expectShape(ShapeId.from("test#OrderService"), ServiceShape.class);
-    return new AsyncApiConverter(model, service).convert();
+    return new AsyncApiConverter(
+            model, java.util.List.of(service), java.util.Optional.empty(), perspective)
+        .convert();
   }
 
   private ObjectNode convertGrouped() {
-    Model model =
-        Model.assembler()
-            .discoverModels()
-            .addUnparsedModel("test.smithy", MODEL)
-            .assemble()
-            .unwrap();
+    Model model = assembleModel(MODEL);
     ServiceShape orders =
         model.expectShape(ShapeId.from("test#OrderService"), ServiceShape.class);
     ServiceShape presence =
         model.expectShape(ShapeId.from("test#PresenceService"), ServiceShape.class);
-    return new AsyncApiConverter(model, java.util.List.of(orders, presence), java.util.Optional.of("Grouped API"))
+    return new AsyncApiConverter(
+            model,
+            java.util.List.of(orders, presence),
+            java.util.Optional.of("Grouped API"),
+            AsyncApiConverter.Perspective.OWNER)
         .convert();
   }
 
@@ -134,7 +136,7 @@ use bote#event
     assertEquals("2024-01-01", info.expectStringMember("version").getValue());
     // info.description comes from the service's @documentation.
     assertEquals(
-        "Invokes order commands and subscribes to order events.",
+        "Produces order commands and consumes order events.",
         info.expectStringMember("description").getValue());
   }
 
@@ -192,8 +194,21 @@ use bote#event
   }
 
 @Test
-  void mapsSendAndReceiveActions() {
+  void ownerPerspectiveReceivesCommandsAndSendsEvents() {
     ObjectNode operations = convert().expectObjectMember("operations");
+    // The document describes the contract owner: it receives commands, sends events.
+    assertEquals(
+        "receive",
+        operations.expectObjectMember("PublishOrder").expectStringMember("action").getValue());
+    assertEquals(
+        "send",
+        operations.expectObjectMember("ConsumeOrders").expectStringMember("action").getValue());
+  }
+
+@Test
+  void clientPerspectiveSendsCommandsAndReceivesEvents() {
+    ObjectNode operations =
+        convert(AsyncApiConverter.Perspective.CLIENT).expectObjectMember("operations");
     assertEquals(
         "send",
         operations.expectObjectMember("PublishOrder").expectStringMember("action").getValue());
@@ -203,7 +218,7 @@ use bote#event
   }
 
 @Test
-  void invocationsAndSubscriptionsShareOneChannel() {
+  void produceAndConsumeShareOneChannel() {
     ObjectNode doc = convert();
     // A single "orders" channel is produced even though two operations bind to it.
     ObjectNode channels = doc.expectObjectMember("channels");
@@ -221,7 +236,7 @@ use bote#event
             .getMember("OrderEvent")
             .isPresent());
 
-    // The subscription operation references the event message on the same channel.
+    // The consume operation references the event message on the same channel.
     String receiveRef =
         doc.expectObjectMember("operations")
             .expectObjectMember("ConsumeOrders")
@@ -242,6 +257,7 @@ use bote#event
             .expectObjectMember("messages")
             .expectObjectMember("SubmitOrder");
 
+    // Commands are bare payloads — no envelope.
     assertEquals(
         "#/components/schemas/SubmitOrder",
         message.expectObjectMember("payload").expectStringMember("$ref").getValue());
@@ -262,6 +278,72 @@ use bote#event
   }
 
 @Test
+  void envelopeDiscriminationWrapsEventPayloads() {
+    // eventDiscrimination defaults to ENVELOPE: the event payload is the
+    // single-key tagged-union object keyed by the streaming union member name.
+    ObjectNode payload =
+        convert()
+            .expectObjectMember("components")
+            .expectObjectMember("messages")
+            .expectObjectMember("OrderEvent")
+            .expectObjectMember("payload");
+    assertEquals("object", payload.expectStringMember("type").getValue());
+    assertEquals(
+        "#/components/schemas/OrderEvent",
+        payload
+            .expectObjectMember("properties")
+            .expectObjectMember("orderEvent")
+            .expectStringMember("$ref")
+            .getValue());
+    assertEquals(
+        "orderEvent",
+        payload.expectArrayMember("required").get(0).get().expectStringNode().getValue());
+  }
+
+@Test
+  void headerDiscriminationEmitsTypeHeader() {
+    String model =
+        """
+        $version: "2"
+        namespace test
+        use bote#kafkaJson
+        use bote#kafkaConsume
+        use bote#event
+
+        @kafkaJson(eventDiscrimination: "HEADER")
+        service Lights { operations: [Consume] }
+
+        @kafkaConsume(topic: "lights")
+        operation Consume { output := { events: Stream } }
+
+        @streaming
+        union Stream { measured: Measured }
+
+        @event
+        structure Measured { lumens: Integer }
+        """;
+    Model assembled = assembleModel(model);
+    ServiceShape service = assembled.expectShape(ShapeId.from("test#Lights"), ServiceShape.class);
+    ObjectNode message =
+        new AsyncApiConverter(assembled, service)
+            .convert()
+            .expectObjectMember("components")
+            .expectObjectMember("messages")
+            .expectObjectMember("Measured");
+
+    // Bare payload plus a constant "bote-type" header carrying the member name.
+    assertEquals(
+        "#/components/schemas/Measured",
+        message.expectObjectMember("payload").expectStringMember("$ref").getValue());
+    ObjectNode typeHeader =
+        message
+            .expectObjectMember("headers")
+            .expectObjectMember("properties")
+            .expectObjectMember("bote-type");
+    assertEquals("measured", typeHeader.expectStringMember("const").getValue());
+  }
+
+@Test
   void schemasContainMessageClosureButNotStreamingWrapper() {
     ObjectNode schemas = convert().expectObjectMember("components").expectObjectMember("schemas");
     assertTrue(schemas.getMember("SubmitOrder").isPresent());
@@ -278,5 +360,30 @@ use bote#event
             .expectObjectMember("totalCents")
             .expectStringMember("type")
             .getValue());
+  }
+
+@Test
+  void headerMembersAreStrippedFromPayloadSchemas() {
+    ObjectNode schemas = convert().expectObjectMember("components").expectObjectMember("schemas");
+    // @kafkaHeader members travel only as Kafka headers, never in the JSON value.
+    assertFalse(
+        schemas
+            .expectObjectMember("SubmitOrder")
+            .expectObjectMember("properties")
+            .getMember("traceId")
+            .isPresent());
+    assertFalse(
+        schemas
+            .expectObjectMember("OrderEvent")
+            .expectObjectMember("properties")
+            .getMember("traceId")
+            .isPresent());
+    // @kafkaKey members stay in the payload.
+    assertTrue(
+        schemas
+            .expectObjectMember("SubmitOrder")
+            .expectObjectMember("properties")
+            .getMember("orderId")
+            .isPresent());
   }
 }

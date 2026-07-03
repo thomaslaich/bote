@@ -1,37 +1,34 @@
 $version: "2"
 
-// Redis Streams example using operation-level stream addresses.
+// Redis Streams example: XADD and XREAD capabilities on one stream.
 namespace chat
 
 use bote#command
 use bote#event
-use bote#invocation
-use bote#redisStream
+use bote#redisStreamAdd
+use bote#redisStreamRead
 use bote#redisStreamsJson
-use bote#subscription
 
-/// The chat room API: clients post messages and subscribe to posted messages.
+/// The chat room API: clients post messages and read posted messages.
 @title("Chat Room API")
 @redisStreamsJson
 service ChatRoom {
     version: "1.0.0"
     operations: [
         PostMessage
-        SubscribeToMessages
+        ReadMessages
     ]
 }
 
 /// Post a chat message to the room stream.
-@invocation
-@redisStream(name: "chat:messages", maxLen: 10000)
+@redisStreamAdd(stream: "chat:messages", maxLen: 10000)
 operation PostMessage {
     input: PostChatMessage
 }
 
-/// Subscribe to posted chat messages from the room stream.
-@subscription
-@redisStream(name: "chat:messages", maxLen: 10000)
-operation SubscribeToMessages {
+/// Read posted chat messages from the room stream.
+@redisStreamRead(stream: "chat:messages", maxLen: 10000)
+operation ReadMessages {
     output := {
         messages: ChatMessageSubscription
     }
