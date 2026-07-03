@@ -1,0 +1,118 @@
+{
+    "asyncapi": "3.1.0",
+    "info": {
+        "title": "Chat Room API",
+        "version": "1.0.0",
+        "description": "The chat room API: clients post messages and read posted messages."
+    },
+    "defaultContentType": "application/json",
+    "channels": {
+        "chat:messages": {
+            "address": "chat:messages",
+            "messages": {
+                "PostChatMessage": {
+                    "$ref": "#/components/messages/PostChatMessage"
+                },
+                "ChatMessagePosted": {
+                    "$ref": "#/components/messages/ChatMessagePosted"
+                }
+            }
+        }
+    },
+    "operations": {
+        "PostMessage": {
+            "action": "receive",
+            "channel": {
+                "$ref": "#/channels/chat:messages"
+            },
+            "messages": [
+                {
+                    "$ref": "#/channels/chat:messages/messages/PostChatMessage"
+                }
+            ],
+            "summary": "Post a chat message to the room stream."
+        },
+        "ReadMessages": {
+            "action": "send",
+            "channel": {
+                "$ref": "#/channels/chat:messages"
+            },
+            "messages": [
+                {
+                    "$ref": "#/channels/chat:messages/messages/ChatMessagePosted"
+                }
+            ],
+            "summary": "Read posted chat messages from the room stream."
+        }
+    },
+    "components": {
+        "messages": {
+            "PostChatMessage": {
+                "name": "PostChatMessage",
+                "title": "PostChatMessage",
+                "contentType": "application/json",
+                "payload": {
+                    "$ref": "#/components/schemas/PostChatMessage"
+                },
+                "summary": "Command to post a chat message to a room."
+            },
+            "ChatMessagePosted": {
+                "name": "ChatMessagePosted",
+                "title": "ChatMessagePosted",
+                "contentType": "application/json",
+                "payload": {
+                    "type": "object",
+                    "properties": {
+                        "chatMessage": {
+                            "$ref": "#/components/schemas/ChatMessagePosted"
+                        }
+                    },
+                    "required": [
+                        "chatMessage"
+                    ]
+                },
+                "summary": "A chat message was posted to a room."
+            }
+        },
+        "schemas": {
+            "ChatMessagePosted": {
+                "type": "object",
+                "description": "A chat message was posted to a room.",
+                "properties": {
+                    "roomId": {
+                        "type": "string"
+                    },
+                    "userId": {
+                        "type": "string"
+                    },
+                    "body": {
+                        "type": "string",
+                        "maxLength": 4000,
+                        "minLength": 1
+                    },
+                    "sentAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    }
+                }
+            },
+            "PostChatMessage": {
+                "type": "object",
+                "description": "Command to post a chat message to a room.",
+                "properties": {
+                    "roomId": {
+                        "type": "string"
+                    },
+                    "userId": {
+                        "type": "string"
+                    },
+                    "body": {
+                        "type": "string",
+                        "maxLength": 4000,
+                        "minLength": 1
+                    }
+                }
+            }
+        }
+    }
+}

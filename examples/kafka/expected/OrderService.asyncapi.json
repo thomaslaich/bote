@@ -1,0 +1,259 @@
+{
+    "asyncapi": "3.1.0",
+    "info": {
+        "title": "Order Service API",
+        "version": "1.0.0",
+        "description": "The order service API."
+    },
+    "defaultContentType": "application/json",
+    "channels": {
+        "orders.commands": {
+            "address": "orders.commands",
+            "messages": {
+                "SubmitOrderCommand": {
+                    "$ref": "#/components/messages/SubmitOrderCommand"
+                }
+            },
+            "bindings": {
+                "kafka": {
+                    "topic": "orders.commands",
+                    "bindingVersion": "0.5.0"
+                }
+            }
+        },
+        "orders.events": {
+            "address": "orders.events",
+            "messages": {
+                "OrderPlaced": {
+                    "$ref": "#/components/messages/OrderPlaced"
+                },
+                "OrderShipped": {
+                    "$ref": "#/components/messages/OrderShipped"
+                },
+                "OrderCancelled": {
+                    "$ref": "#/components/messages/OrderCancelled"
+                }
+            },
+            "bindings": {
+                "kafka": {
+                    "topic": "orders.events",
+                    "bindingVersion": "0.5.0",
+                    "partitions": 6,
+                    "replicas": 3,
+                    "topicConfiguration": {
+                        "retention.ms": 604800000
+                    }
+                }
+            }
+        }
+    },
+    "operations": {
+        "SubmitOrder": {
+            "action": "receive",
+            "channel": {
+                "$ref": "#/channels/orders.commands"
+            },
+            "messages": [
+                {
+                    "$ref": "#/channels/orders.commands/messages/SubmitOrderCommand"
+                }
+            ],
+            "summary": "Submit a new order for processing."
+        },
+        "ConsumeOrderEvents": {
+            "action": "send",
+            "channel": {
+                "$ref": "#/channels/orders.events"
+            },
+            "messages": [
+                {
+                    "$ref": "#/channels/orders.events/messages/OrderPlaced"
+                },
+                {
+                    "$ref": "#/channels/orders.events/messages/OrderShipped"
+                },
+                {
+                    "$ref": "#/channels/orders.events/messages/OrderCancelled"
+                }
+            ],
+            "summary": "Consume order lifecycle events."
+        }
+    },
+    "components": {
+        "messages": {
+            "SubmitOrderCommand": {
+                "name": "SubmitOrderCommand",
+                "title": "SubmitOrderCommand",
+                "contentType": "application/json",
+                "payload": {
+                    "$ref": "#/components/schemas/SubmitOrderCommand"
+                },
+                "summary": "Command to submit a new order.",
+                "bindings": {
+                    "kafka": {
+                        "key": {
+                            "type": "string"
+                        },
+                        "bindingVersion": "0.5.0"
+                    }
+                },
+                "headers": {
+                    "type": "object",
+                    "properties": {
+                        "x-trace-id": {
+                            "type": "string"
+                        }
+                    }
+                }
+            },
+            "OrderPlaced": {
+                "name": "OrderPlaced",
+                "title": "OrderPlaced",
+                "contentType": "application/json",
+                "payload": {
+                    "type": "object",
+                    "properties": {
+                        "placed": {
+                            "$ref": "#/components/schemas/OrderPlaced"
+                        }
+                    },
+                    "required": [
+                        "placed"
+                    ]
+                },
+                "summary": "An order was placed.",
+                "bindings": {
+                    "kafka": {
+                        "key": {
+                            "type": "string"
+                        },
+                        "bindingVersion": "0.5.0"
+                    }
+                }
+            },
+            "OrderShipped": {
+                "name": "OrderShipped",
+                "title": "OrderShipped",
+                "contentType": "application/json",
+                "payload": {
+                    "type": "object",
+                    "properties": {
+                        "shipped": {
+                            "$ref": "#/components/schemas/OrderShipped"
+                        }
+                    },
+                    "required": [
+                        "shipped"
+                    ]
+                },
+                "summary": "An order was shipped.",
+                "bindings": {
+                    "kafka": {
+                        "key": {
+                            "type": "string"
+                        },
+                        "bindingVersion": "0.5.0"
+                    }
+                }
+            },
+            "OrderCancelled": {
+                "name": "OrderCancelled",
+                "title": "OrderCancelled",
+                "contentType": "application/json",
+                "payload": {
+                    "type": "object",
+                    "properties": {
+                        "cancelled": {
+                            "$ref": "#/components/schemas/OrderCancelled"
+                        }
+                    },
+                    "required": [
+                        "cancelled"
+                    ]
+                },
+                "summary": "An order was cancelled.",
+                "bindings": {
+                    "kafka": {
+                        "key": {
+                            "type": "string"
+                        },
+                        "bindingVersion": "0.5.0"
+                    }
+                }
+            }
+        },
+        "schemas": {
+            "SubmitOrderCommand": {
+                "type": "object",
+                "description": "Command to submit a new order.",
+                "properties": {
+                    "orderId": {
+                        "type": "string"
+                    },
+                    "customerId": {
+                        "type": "string"
+                    },
+                    "totalCents": {
+                        "type": "integer",
+                        "minimum": 0
+                    }
+                }
+            },
+            "OrderPlaced": {
+                "type": "object",
+                "description": "An order was placed.",
+                "properties": {
+                    "orderId": {
+                        "type": "string"
+                    },
+                    "customerId": {
+                        "type": "string"
+                    },
+                    "totalCents": {
+                        "type": "integer",
+                        "minimum": 0
+                    },
+                    "placedAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    }
+                }
+            },
+            "OrderShipped": {
+                "type": "object",
+                "description": "An order was shipped.",
+                "properties": {
+                    "orderId": {
+                        "type": "string"
+                    },
+                    "carrier": {
+                        "type": "string"
+                    },
+                    "trackingNumber": {
+                        "type": "string"
+                    },
+                    "shippedAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    }
+                }
+            },
+            "OrderCancelled": {
+                "type": "object",
+                "description": "An order was cancelled.",
+                "properties": {
+                    "orderId": {
+                        "type": "string"
+                    },
+                    "reason": {
+                        "type": "string"
+                    },
+                    "cancelledAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    }
+                }
+            }
+        }
+    }
+}

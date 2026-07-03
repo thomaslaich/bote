@@ -21,6 +21,16 @@ fmt:
 studio example="kafka" service="StreetlightDevice": build
     npx -y @asyncapi/cli start studio examples/{{ example }}/build/smithyprojections/{{ example }}/source/asyncapi/{{ service }}.asyncapi.json
 
+# Regenerate the golden AsyncAPI documents CI diffs against
+golden: build
+    cp examples/kafka/build/smithyprojections/kafka/source/asyncapi/*.asyncapi.json examples/kafka/expected/
+    cp examples/redis/build/smithyprojections/redis/source/asyncapi/*.asyncapi.json examples/redis/expected/
+
+# Verify the generated AsyncAPI documents match the golden files (what CI runs)
+verify-golden: build
+    diff -ru examples/kafka/expected examples/kafka/build/smithyprojections/kafka/source/asyncapi
+    diff -ru examples/redis/expected examples/redis/build/smithyprojections/redis/source/asyncapi
+
 # Publish bote + smithy-asyncapi to the local Maven repo (~/.m2) for local consumers
 publish-local:
     gradle publishToMavenLocal

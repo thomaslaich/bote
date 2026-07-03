@@ -1,0 +1,116 @@
+{
+    "asyncapi": "3.1.0",
+    "info": {
+        "title": "Presence API",
+        "version": "1.0.0",
+        "description": "Presence API: clients set their presence and subscribe to presence changes."
+    },
+    "defaultContentType": "application/json",
+    "channels": {
+        "presence": {
+            "address": "presence",
+            "messages": {
+                "SetPresenceCommand": {
+                    "$ref": "#/components/messages/SetPresenceCommand"
+                },
+                "PresenceChanged": {
+                    "$ref": "#/components/messages/PresenceChanged"
+                }
+            }
+        }
+    },
+    "operations": {
+        "SetPresence": {
+            "action": "receive",
+            "channel": {
+                "$ref": "#/channels/presence"
+            },
+            "messages": [
+                {
+                    "$ref": "#/channels/presence/messages/SetPresenceCommand"
+                }
+            ],
+            "summary": "Set a user's presence."
+        },
+        "SubscribeToPresence": {
+            "action": "send",
+            "channel": {
+                "$ref": "#/channels/presence"
+            },
+            "messages": [
+                {
+                    "$ref": "#/channels/presence/messages/PresenceChanged"
+                }
+            ],
+            "summary": "Subscribe to presence changes on the presence channel."
+        }
+    },
+    "components": {
+        "messages": {
+            "SetPresenceCommand": {
+                "name": "SetPresenceCommand",
+                "title": "SetPresenceCommand",
+                "contentType": "application/json",
+                "payload": {
+                    "$ref": "#/components/schemas/SetPresenceCommand"
+                },
+                "summary": "Command to set a user's presence."
+            },
+            "PresenceChanged": {
+                "name": "PresenceChanged",
+                "title": "PresenceChanged",
+                "contentType": "application/json",
+                "payload": {
+                    "type": "object",
+                    "properties": {
+                        "presenceChanged": {
+                            "$ref": "#/components/schemas/PresenceChanged"
+                        }
+                    },
+                    "required": [
+                        "presenceChanged"
+                    ]
+                },
+                "summary": "A user's presence changed."
+            }
+        },
+        "schemas": {
+            "SetPresenceCommand": {
+                "type": "object",
+                "description": "Command to set a user's presence.",
+                "properties": {
+                    "userId": {
+                        "type": "string"
+                    },
+                    "status": {
+                        "$ref": "#/components/schemas/PresenceStatus"
+                    }
+                }
+            },
+            "PresenceChanged": {
+                "type": "object",
+                "description": "A user's presence changed.",
+                "properties": {
+                    "userId": {
+                        "type": "string"
+                    },
+                    "status": {
+                        "$ref": "#/components/schemas/PresenceStatus"
+                    },
+                    "sentAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    }
+                }
+            },
+            "PresenceStatus": {
+                "type": "string",
+                "enum": [
+                    "ONLINE",
+                    "AWAY",
+                    "OFFLINE"
+                ]
+            }
+        }
+    }
+}
