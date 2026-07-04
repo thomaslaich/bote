@@ -626,27 +626,13 @@ final class AsyncApiConverter {
   /** Minimal JSON Schema type node for a Kafka key or header member. */
   private Node jsonTypeOf(MemberShape member) {
     ShapeType type = model.expectShape(member.getTarget()).getType();
-    String jsonType;
-    switch (type) {
-      case BYTE:
-      case SHORT:
-      case INTEGER:
-      case LONG:
-      case BIG_INTEGER:
-        jsonType = "integer";
-        break;
-      case FLOAT:
-      case DOUBLE:
-      case BIG_DECIMAL:
-        jsonType = "number";
-        break;
-      case BOOLEAN:
-        jsonType = "boolean";
-        break;
-      default:
-        jsonType = "string";
-        break;
-    }
+    String jsonType =
+        switch (type) {
+          case BYTE, SHORT, INTEGER, LONG, BIG_INTEGER -> "integer";
+          case FLOAT, DOUBLE, BIG_DECIMAL -> "number";
+          case BOOLEAN -> "boolean";
+          default -> "string";
+        };
     return Node.objectNodeBuilder().withMember("type", jsonType).build();
   }
 

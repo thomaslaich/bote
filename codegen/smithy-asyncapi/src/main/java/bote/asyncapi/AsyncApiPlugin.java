@@ -114,15 +114,13 @@ public final class AsyncApiPlugin implements SmithyBuildPlugin {
   private AsyncApiConverter.Perspective resolvePerspective(ObjectNode settings) {
     String value =
         settings.getStringMember("perspective").map(n -> n.getValue()).orElse("owner");
-    switch (value) {
-      case "owner":
-        return AsyncApiConverter.Perspective.OWNER;
-      case "client":
-        return AsyncApiConverter.Perspective.CLIENT;
-      default:
-        throw new SmithyBuildException(
-            "asyncapi: `perspective` must be \"owner\" or \"client\", got \"" + value + "\".");
-    }
+    return switch (value) {
+      case "owner" -> AsyncApiConverter.Perspective.OWNER;
+      case "client" -> AsyncApiConverter.Perspective.CLIENT;
+      default ->
+          throw new SmithyBuildException(
+              "asyncapi: `perspective` must be \"owner\" or \"client\", got \"" + value + "\".");
+    };
   }
 
   private List<ServiceShape> resolveServices(Model model, List<ShapeId> serviceIds) {

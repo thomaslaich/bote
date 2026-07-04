@@ -1,6 +1,7 @@
 plugins {
     `java-library`
     `maven-publish`
+    id("net.ltgt.errorprone")
 }
 
 repositories {
@@ -20,6 +21,8 @@ dependencies {
     testImplementation(platform("org.junit:junit-bom:5.11.0"))
     testImplementation("org.junit.jupiter:junit-jupiter")
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
+
+    errorprone("com.google.errorprone:error_prone_core:2.50.0")
 }
 
 base {
