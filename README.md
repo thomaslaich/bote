@@ -215,16 +215,18 @@ service, `perspective` picks the viewpoint.
 
 Two example modules exercise the generator end to end: `examples/kafka`
 (order service and streetlight device) and `examples/redis` (Streams chat,
-Pub/Sub presence). Run `gradle build` and inspect
-`build/smithyprojections/<module>/source/asyncapi/`.
+Pub/Sub presence). Each generates the owner document in the `source`
+projection and the client document in a `client` projection. Run
+`gradle build` and inspect
+`build/smithyprojections/<module>/<projection>/asyncapi/`.
 
 To view a generated document in
 [AsyncAPI Studio](https://studio.asyncapi.com):
 
 ```shell
-just studio                          # kafka / StreetlightDevice
+just studio                          # kafka / StreetlightDevice, owner view
 just studio kafka OrderService
-just studio redis ChatRoom
+just studio redis ChatRoom client    # client view
 ```
 
 Requires Node; the recipe runs `npx @asyncapi/cli start studio <file>` and
@@ -248,7 +250,7 @@ toolchain, [`just`](https://github.com/casey/just), and the formatters.
 | Recipe                  | What it does                                            |
 |-------------------------|---------------------------------------------------------|
 | `just build`            | build and validate the models, run the generator and tests |
-| `just studio [service]` | build, then open a generated doc in AsyncAPI Studio     |
+| `just studio [module] [service] [perspective]` | build, then open a generated doc in AsyncAPI Studio |
 | `just fmt`              | format everything (`treefmt`, `gradle smithyFormat`)    |
 | `just golden`           | regenerate the golden AsyncAPI docs CI diffs against    |
 | `just verify-golden`    | check generated docs against the golden files           |

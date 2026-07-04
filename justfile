@@ -16,10 +16,10 @@ fmt:
     gradle smithyFormat
 
 # Render a generated AsyncAPI doc in AsyncAPI Studio (live-reloads on rebuild).
-# Pass an example module and a service, e.g. `just studio kafka OrderService`
-# or `just studio redis ChatRoom`.
-studio example="kafka" service="StreetlightDevice": build
-    npx -y @asyncapi/cli start studio examples/{{ example }}/build/smithyprojections/{{ example }}/source/asyncapi/{{ service }}.asyncapi.json
+# Pass an example module, a service, and optionally a perspective, e.g.
+# `just studio kafka OrderService` or `just studio redis ChatRoom client`.
+studio example="kafka" service="StreetlightDevice" perspective="owner": build
+    npx -y @asyncapi/cli start studio examples/{{ example }}/build/smithyprojections/{{ example }}/{{ if perspective == "owner" { "source" } else { "client" } }}/asyncapi/{{ service }}.asyncapi.json
 
 # Regenerate the golden AsyncAPI documents CI diffs against
 golden: build

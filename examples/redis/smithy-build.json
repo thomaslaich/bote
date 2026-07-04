@@ -3,5 +3,14 @@
     "sources": ["model"],
     "plugins": {
         "asyncapi": {}
+    },
+    "projections": {
+        "client": {
+            "plugins": {
+                "asyncapi": {
+                    "perspective": "client"
+                }
+            }
+        }
     }
 }
