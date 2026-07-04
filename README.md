@@ -234,12 +234,12 @@ live-reloads on rebuild.
 
 ## Modules
 
-| Module                    | Coordinates               | Contents                                  |
-|---------------------------|---------------------------|-------------------------------------------|
-| (root)                    | `io.bote:bote`            | trait definitions, protocol specs, validators |
-| `codegen/smithy-asyncapi` | `io.bote:smithy-asyncapi` | the AsyncAPI Smithy build plugin          |
-| `examples/kafka`          |                           | Kafka example contracts                   |
-| `examples/redis`          |                           | Redis Streams and Pub/Sub examples        |
+| Module                    | Artifact          | Contents                                      |
+|---------------------------|-------------------|-----------------------------------------------|
+| (root)                    | `bote`            | trait definitions, protocol specs, validators |
+| `codegen/smithy-asyncapi` | `smithy-asyncapi` | the AsyncAPI Smithy build plugin              |
+| `examples/kafka`          |                   | Kafka example contracts                       |
+| `examples/redis`          |                   | Redis Streams and Pub/Sub examples            |
 
 ## Build
 
@@ -262,9 +262,20 @@ Gradle works directly as well: `gradle build`, `gradle publishToMavenLocal`.
 
 ## Coordinates
 
+Published to Maven Central under the `io.github.thomaslaich.bote` group:
+
 ```
-io.bote:bote:0.1.0-SNAPSHOT
+io.github.thomaslaich.bote:bote:<version>
+io.github.thomaslaich.bote:smithy-asyncapi:<version>
 ```
+
+Releases are cut by publishing a GitHub release with a `v<version>` tag; the
+release workflow builds, signs, and uploads to Maven Central via the Sonatype
+Central Portal.
+
+## License
+
+[Apache-2.0](LICENSE)
 
 ## Status
 

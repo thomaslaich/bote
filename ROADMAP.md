@@ -42,5 +42,7 @@ enforcement that no other tool provides:
 
 ## Publishing
 
-- [ ] Publish `io.bote:bote` and `io.bote:smithy-asyncapi` to Maven Central
-      (or GitHub Packages initially).
+- [x] Maven Central release pipeline (`io.github.thomaslaich.bote`
+      namespace, tag-triggered workflow, Sonatype Central Portal).
+- [ ] First tagged release, once an NSmithy preview consumer exists to
+      validate the wire rules.

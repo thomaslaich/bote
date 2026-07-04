@@ -1,7 +1,11 @@
+import com.vanniktech.maven.publish.JavaLibrary
+import com.vanniktech.maven.publish.JavadocJar
+import com.vanniktech.maven.publish.SonatypeHost
+
 plugins {
     `java-library`
-    `maven-publish`
     id("net.ltgt.errorprone")
+    id("com.vanniktech.maven.publish")
 }
 
 repositories {
@@ -42,14 +46,41 @@ tasks.named<Test>("test") {
     useJUnitPlatform()
 }
 
-group = "io.bote"
-version = "0.1.0-SNAPSHOT"
+mavenPublishing {
+    publishToMavenCentral(SonatypeHost.CENTRAL_PORTAL)
+    if (providers.environmentVariable("ORG_GRADLE_PROJECT_signingInMemoryKey").isPresent) {
+        signAllPublications()
+    }
 
-publishing {
-    publications {
-        create<MavenPublication>("mavenJava") {
-            artifactId = "smithy-asyncapi"
-            from(components["java"])
+    configure(JavaLibrary(javadocJar = JavadocJar.Empty(), sourcesJar = true))
+
+    coordinates(group.toString(), "smithy-asyncapi", version.toString())
+
+    pom {
+        name.set("smithy-asyncapi")
+        description.set(
+            "Smithy build plugin that generates AsyncAPI 3.1 documents from bote messaging contracts."
+        )
+        url.set("https://github.com/thomaslaich/bote")
+        inceptionYear.set("2026")
+        licenses {
+            license {
+                name.set("Apache-2.0")
+                url.set("https://www.apache.org/licenses/LICENSE-2.0.txt")
+                distribution.set("repo")
+            }
+        }
+        developers {
+            developer {
+                id.set("thomaslaich")
+                name.set("Thomas Laich")
+                url.set("https://github.com/thomaslaich")
+            }
+        }
+        scm {
+            url.set("https://github.com/thomaslaich/bote")
+            connection.set("scm:git:git://github.com/thomaslaich/bote.git")
+            developerConnection.set("scm:git:ssh://git@github.com/thomaslaich/bote.git")
         }
     }
 }

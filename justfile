@@ -35,6 +35,13 @@ verify-golden: build
 publish-local:
     gradle publishToMavenLocal
 
+# Publish bote + smithy-asyncapi to Maven Central via the Sonatype Central Portal.
+# Used by the release workflow; expects MAVEN_CENTRAL_USERNAME / MAVEN_CENTRAL_PASSWORD
+# and ORG_GRADLE_PROJECT_signingInMemoryKey / ORG_GRADLE_PROJECT_signingInMemoryKeyPassword
+# to be set in the environment.
+publish VERSION:
+    gradle -Pversion={{ VERSION }} :publishAndReleaseToMavenCentral :codegen:smithy-asyncapi:publishAndReleaseToMavenCentral
+
 # Clean build outputs
 clean:
     gradle clean
