@@ -3,6 +3,7 @@
     "info": {
         "title": "Presence API",
         "version": "1.0.0",
+        "x-bote-perspective": "owner",
         "description": "Presence API: clients set their presence and subscribe to presence changes."
     },
     "defaultContentType": "application/json",

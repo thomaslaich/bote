@@ -185,7 +185,8 @@ AsyncAPI 3 actions describe the application the document is about, so the
 mapping depends on the `perspective` setting. The default `"owner"` describes
 the contract owner: produce operations become `action: receive` and consume
 operations become `action: send`. Setting `"perspective": "client"` flips
-both.
+both. The document records its side in `info.x-bote-perspective` so readers
+and tooling need not guess.
 
 | bote                          | AsyncAPI 3.1                                    |
 |-------------------------------|-------------------------------------------------|

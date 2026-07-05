@@ -195,7 +195,8 @@ use bote#event
 
 @Test
   void ownerPerspectiveReceivesCommandsAndSendsEvents() {
-    ObjectNode operations = convert().expectObjectMember("operations");
+    ObjectNode doc = convert();
+    ObjectNode operations = doc.expectObjectMember("operations");
     // The document describes the contract owner: it receives commands, sends events.
     assertEquals(
         "receive",
@@ -203,18 +204,25 @@ use bote#event
     assertEquals(
         "send",
         operations.expectObjectMember("ConsumeOrders").expectStringMember("action").getValue());
+    // The document records which side it describes.
+    assertEquals(
+        "owner",
+        doc.expectObjectMember("info").expectStringMember("x-bote-perspective").getValue());
   }
 
 @Test
   void clientPerspectiveSendsCommandsAndReceivesEvents() {
-    ObjectNode operations =
-        convert(AsyncApiConverter.Perspective.CLIENT).expectObjectMember("operations");
+    ObjectNode doc = convert(AsyncApiConverter.Perspective.CLIENT);
+    ObjectNode operations = doc.expectObjectMember("operations");
     assertEquals(
         "send",
         operations.expectObjectMember("PublishOrder").expectStringMember("action").getValue());
     assertEquals(
         "receive",
         operations.expectObjectMember("ConsumeOrders").expectStringMember("action").getValue());
+    assertEquals(
+        "client",
+        doc.expectObjectMember("info").expectStringMember("x-bote-perspective").getValue());
   }
 
 @Test

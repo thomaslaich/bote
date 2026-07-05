@@ -3,6 +3,7 @@
     "info": {
         "title": "Streetlight Device API",
         "version": "1.0.0",
+        "x-bote-perspective": "owner",
         "description": "The streetlight device API: clients consume lighting events and produce dim commands."
     },
     "defaultContentType": "application/json",

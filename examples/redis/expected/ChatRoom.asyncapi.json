@@ -3,6 +3,7 @@
     "info": {
         "title": "Chat Room API",
         "version": "1.0.0",
+        "x-bote-perspective": "owner",
         "description": "The chat room API: clients post messages and read posted messages."
     },
     "defaultContentType": "application/json",

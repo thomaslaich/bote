@@ -3,6 +3,7 @@
     "info": {
         "title": "Order Service API",
         "version": "1.0.0",
+        "x-bote-perspective": "owner",
         "description": "The order service API."
     },
     "defaultContentType": "application/json",

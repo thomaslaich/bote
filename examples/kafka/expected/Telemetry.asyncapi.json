@@ -3,6 +3,7 @@
     "info": {
         "title": "Telemetry API",
         "version": "1.0.0",
+        "x-bote-perspective": "owner",
         "description": "The telemetry API: sensors record readings and clients consume alerts."
     },
     "defaultContentType": "application/protobuf",

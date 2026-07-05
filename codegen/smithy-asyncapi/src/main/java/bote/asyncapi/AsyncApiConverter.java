@@ -555,7 +555,13 @@ final class AsyncApiConverter {
                     .map(TitleTrait::getValue)
                     .orElseGet(() -> first.getId().getName()));
     ObjectNode.Builder info =
-        Node.objectNodeBuilder().withMember("title", title).withMember("version", version);
+        Node.objectNodeBuilder()
+            .withMember("title", title)
+            .withMember("version", version)
+            // AsyncAPI 3 actions are relative to the application the document
+            // describes; this extension records which side that is.
+            .withMember(
+                "x-bote-perspective", perspective == Perspective.OWNER ? "owner" : "client");
     if (services.size() == 1) {
       documentation(first).ifPresent(doc -> info.withMember("description", doc));
     }
