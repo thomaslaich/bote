@@ -31,8 +31,9 @@ enforcement that no other tool provides:
       say how command types are told apart. Either extend
       `eventDiscrimination` to commands or keep one-command-per-topic as the
       rule.
-- [ ] `@kafkaProtobuf`: still a stub; needs the Alloy proto-trait
-      integration exercised end to end.
+- [x] `@kafkaProtobuf`: wire rules specified (oneof envelope, reserved
+      header indexes), explicit @protoIndex validator-enforced, exercised
+      by the telemetry example.
 
 ## Channels
 

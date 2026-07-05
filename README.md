@@ -22,7 +22,7 @@ dependencies.
 |------------------|-------------------------|----------|---------|
 | `@kafkaJson`     | Kafka                   | JSON     | Defined |
 | `@kafkaAvro`     | Kafka + Schema Registry | Avro     | Defined |
-| `@kafkaProtobuf` | Kafka                   | Protobuf | Stub    |
+| `@kafkaProtobuf` | Kafka                   | Protobuf | Defined |
 | `@redisStreamsJson` | Redis Streams        | JSON     | Defined |
 | `@redisPubSubJson`  | Redis Pub/Sub        | JSON     | Defined |
 
@@ -116,6 +116,13 @@ interoperate:
   The Redis JSON protocols always use the envelope. `@kafkaAvro` needs no
   discriminator because the schema ID in the Confluent wire format identifies
   the event type.
+
+For `@kafkaProtobuf`, the `@streaming` union maps to a proto message with a
+oneof, which is the discriminator. Every payload member must carry an
+explicit `alloy.proto#protoIndex` (validator-enforced): implicit numbering
+breaks the wire format when members are reordered or removed. `@kafkaHeader`
+members still travel only as headers; their index is reserved, not
+serialized.
 
 ## Example
 
@@ -214,8 +221,8 @@ service, `perspective` picks the viewpoint.
 ```
 
 Two example modules exercise the generator end to end: `examples/kafka`
-(order service and streetlight device) and `examples/redis` (Streams chat,
-Pub/Sub presence). Each generates the owner document in the `source`
+(order service and streetlight device over JSON, telemetry over Protobuf)
+and `examples/redis` (Streams chat, Pub/Sub presence). Each generates the owner document in the `source`
 projection and the client document in a `client` projection. Run
 `gradle build` and inspect
 `build/smithyprojections/<module>/<projection>/asyncapi/`.

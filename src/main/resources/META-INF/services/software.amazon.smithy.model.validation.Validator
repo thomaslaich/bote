@@ -1,3 +1,4 @@
 bote.validate.OperationBindingValidator
 bote.validate.KafkaKeyValidator
 bote.validate.ChannelConsistencyValidator
+bote.validate.ProtoIndexValidator

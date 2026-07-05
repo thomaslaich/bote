@@ -344,6 +344,51 @@ use bote#event
   }
 
 @Test
+  void protobufServiceUsesBarePayloadsAndProtobufContentType() {
+    String model =
+        """
+        $version: "2"
+        namespace test
+        use alloy.proto#protoIndex
+        use bote#kafkaProtobuf
+        use bote#kafkaConsume
+        use bote#event
+
+        @kafkaProtobuf
+        service Telemetry { operations: [ConsumeAlerts] }
+
+        @kafkaConsume(topic: "alerts")
+        operation ConsumeAlerts { output := { alerts: Stream } }
+
+        @event
+        structure Alert {
+            @protoIndex(1)
+            sensorId: String
+        }
+
+        @streaming
+        union Stream {
+            @protoIndex(1)
+            alert: Alert
+        }
+        """;
+    Model assembled = assembleModel(model);
+    ServiceShape service =
+        assembled.expectShape(ShapeId.from("test#Telemetry"), ServiceShape.class);
+    ObjectNode doc = new AsyncApiConverter(assembled, service).convert();
+
+    assertEquals(
+        "application/protobuf", doc.expectStringMember("defaultContentType").getValue());
+    ObjectNode message =
+        doc.expectObjectMember("components").expectObjectMember("messages").expectObjectMember("Alert");
+    assertEquals("application/protobuf", message.expectStringMember("contentType").getValue());
+    // The proto oneof is the discriminator, so the payload stays bare.
+    assertEquals(
+        "#/components/schemas/Alert",
+        message.expectObjectMember("payload").expectStringMember("$ref").getValue());
+  }
+
+@Test
   void schemasContainMessageClosureButNotStreamingWrapper() {
     ObjectNode schemas = convert().expectObjectMember("components").expectObjectMember("schemas");
     assertTrue(schemas.getMember("SubmitOrder").isPresent());
