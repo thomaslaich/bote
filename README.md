@@ -18,23 +18,23 @@ dependencies.
 
 **Protocols**, one per service, picking broker and wire encoding:
 
-| Trait            | Broker / mode           | Encoding | Status  |
-|------------------|-------------------------|----------|---------|
-| `@kafkaJson`     | Kafka                   | JSON     | Defined |
-| `@kafkaAvro`     | Kafka + Schema Registry | Avro     | Defined |
-| `@kafkaProtobuf` | Kafka                   | Protobuf | Defined |
-| `@redisStreamsJson` | Redis Streams        | JSON     | Defined |
-| `@redisPubSubJson`  | Redis Pub/Sub        | JSON     | Defined |
+| Trait               | Broker / mode           | Encoding | Status  |
+| ------------------- | ----------------------- | -------- | ------- |
+| `@kafkaJson`        | Kafka                   | JSON     | Defined |
+| `@kafkaAvro`        | Kafka + Schema Registry | Avro     | Defined |
+| `@kafkaProtobuf`    | Kafka                   | Protobuf | Defined |
+| `@redisStreamsJson` | Redis Streams           | JSON     | Defined |
+| `@redisPubSubJson`  | Redis Pub/Sub           | JSON     | Defined |
 
 **Operation traits**, one per broker capability, in the broker's own
 vocabulary (the same principle as Smithy's HTTP and MQTT bindings). Each
 carries the channel address:
 
-| Produce side | Consume side | Broker |
-|---|---|---|
-| `@kafkaProduce(topic:)` | `@kafkaConsume(topic:)` | Kafka; `compacted` declares log compaction |
-| `@redisStreamAdd(stream:)` | `@redisStreamRead(stream:)` | Redis Streams; `maxLen` caps the stream |
-| `@redisPublish(channel:)` | `@redisSubscribe(channel:)` | Redis Pub/Sub |
+| Produce side               | Consume side                | Broker                                     |
+| -------------------------- | --------------------------- | ------------------------------------------ |
+| `@kafkaProduce(topic:)`    | `@kafkaConsume(topic:)`     | Kafka; `compacted` declares log compaction |
+| `@redisStreamAdd(stream:)` | `@redisStreamRead(stream:)` | Redis Streams; `maxLen` caps the stream    |
+| `@redisPublish(channel:)`  | `@redisSubscribe(channel:)` | Redis Pub/Sub                              |
 
 A produce operation takes a `@command` input and no output. A consume
 operation streams `@event` payloads through a `@streaming` union in its
@@ -188,28 +188,28 @@ operations become `action: send`. Setting `"perspective": "client"` flips
 both. The document records its side in `info.x-bote-perspective` so readers
 and tooling need not guess.
 
-| bote                          | AsyncAPI 3.1                                    |
-|-------------------------------|-------------------------------------------------|
-| protocol service              | the document (`info`, `defaultContentType`)     |
-| operation trait address (topic / stream / channel) | a `channel`                |
-| produce `input` / consume output | the channel's and operation's `messages`     |
-| broker operation trait        | an `operation`; the `action` follows the perspective |
-| payload structure             | a component `message` plus JSON Schema `payload` |
-| `@kafkaKey`                   | the Kafka message binding `key`                 |
-| `@kafkaHeader`                | the message `headers` schema                    |
-| HEADER event discrimination   | a constant `bote-type` property in `headers`    |
-| `@kafkaTopicConfig`           | Kafka channel binding partitions/replicas/config |
-| `compacted: true`             | `cleanup.policy: [compact]`                     |
+| bote                                               | AsyncAPI 3.1                                         |
+| -------------------------------------------------- | ---------------------------------------------------- |
+| protocol service                                   | the document (`info`, `defaultContentType`)          |
+| operation trait address (topic / stream / channel) | a `channel`                                          |
+| produce `input` / consume output                   | the channel's and operation's `messages`             |
+| broker operation trait                             | an `operation`; the `action` follows the perspective |
+| payload structure                                  | a component `message` plus JSON Schema `payload`     |
+| `@kafkaKey`                                        | the Kafka message binding `key`                      |
+| `@kafkaHeader`                                     | the message `headers` schema                         |
+| HEADER event discrimination                        | a constant `bote-type` property in `headers`         |
+| `@kafkaTopicConfig`                                | Kafka channel binding partitions/replicas/config     |
+| `compacted: true`                                  | `cleanup.policy: [compact]`                          |
 
 Enable the plugin in a Smithy build:
 
 ```json
 {
-    "version": "1.0",
-    "sources": ["model"],
-    "plugins": {
-        "asyncapi": {}
-    }
+  "version": "1.0",
+  "sources": ["model"],
+  "plugins": {
+    "asyncapi": {}
+  }
 }
 ```
 
@@ -243,7 +243,7 @@ live-reloads on rebuild.
 ## Modules
 
 | Module                    | Artifact          | Contents                                      |
-|---------------------------|-------------------|-----------------------------------------------|
+| ------------------------- | ----------------- | --------------------------------------------- |
 | (root)                    | `bote`            | trait definitions, protocol specs, validators |
 | `codegen/smithy-asyncapi` | `smithy-asyncapi` | the AsyncAPI Smithy build plugin              |
 | `examples/kafka`          |                   | Kafka example contracts                       |
@@ -255,16 +255,18 @@ Requires Java 21. A [devenv](https://devenv.sh) environment provides the
 toolchain, [`just`](https://github.com/casey/just), and the formatters.
 `just` lists the recipes:
 
-| Recipe                  | What it does                                            |
-|-------------------------|---------------------------------------------------------|
-| `just build`            | build and validate the models, run the generator and tests |
-| `just studio [module] [service] [perspective]` | build, then open a generated doc in AsyncAPI Studio |
-| `just fmt`              | format everything (`treefmt`, `gradle smithyFormat`)    |
-| `just golden`           | regenerate the golden AsyncAPI docs CI diffs against    |
-| `just verify-golden`    | check generated docs against the golden files           |
-| `just publish-local`    | publish the JARs to the local Maven repo                |
-| `just clean`            | clean build outputs                                     |
-| `just rebuild`          | `clean` then `build`                                    |
+| Recipe                                         | What it does                                                                    |
+| ---------------------------------------------- | ------------------------------------------------------------------------------- |
+| `just build`                                   | build and validate the models, run the generator and tests                      |
+| `just studio [module] [service] [perspective]` | build, then open a generated doc in AsyncAPI Studio                             |
+| `just fmt`                                     | format everything (`treefmt`, `gradle smithyFormat`)                            |
+| `just check-format`                            | check formatting without rewriting anything                                     |
+| `just golden`                                  | regenerate the golden AsyncAPI docs CI diffs against                            |
+| `just verify-golden`                           | check generated docs against the golden files                                   |
+| `just ci`                                      | what CI and the release workflow run (`check-format`, `build`, `verify-golden`) |
+| `just publish-local`                           | publish the JARs to the local Maven repo                                        |
+| `just clean`                                   | clean build outputs                                                             |
+| `just rebuild`                                 | `clean` then `build`                                                            |
 
 Gradle works directly as well: `gradle build`, `gradle publishToMavenLocal`.
 
@@ -277,14 +279,23 @@ io.github.thomaslaich.bote:bote:<version>
 io.github.thomaslaich.bote:smithy-asyncapi:<version>
 ```
 
-Releases are cut by publishing a GitHub release with a `v<version>` tag; the
-release workflow builds, signs, and uploads to Maven Central via the Sonatype
-Central Portal.
+## Releasing
 
-## License
+Releases are tag-driven. Local builds carry the `0.1.0-SNAPSHOT` placeholder from
+`gradle.properties`; the published version comes from the GitHub release tag, with
+the leading `v` stripped and passed to Gradle as `-Pversion` (tag `v0.2.0` publishes
+`0.2.0`).
 
-[Apache-2.0](LICENSE)
+1. Land a release commit on `main` that moves the `[Unreleased]` section of
+   [CHANGELOG.md](CHANGELOG.md) under the new version and opens a fresh empty
+   `[Unreleased]` above it.
+2. Create a GitHub release with a new `v<version>` tag on that commit, using the
+   changelog section as the release notes.
+3. Publish the release. That triggers
+   [`.github/workflows/release.yml`](.github/workflows/release.yml), which runs
+   `just ci` and then `just publish <version>` — building, signing, and uploading
+   both JARs to Maven Central through the Sonatype Central Portal.
 
-## Status
-
-Exploratory. APIs will change. No stability guarantees.
+Publishing needs four repository secrets: `MAVEN_CENTRAL_USERNAME` /
+`MAVEN_CENTRAL_PASSWORD` (a Sonatype Central Portal user token) and
+`MAVEN_GPG_PRIVATE_KEY` / `MAVEN_GPG_PASSPHRASE` (the armored signing key).

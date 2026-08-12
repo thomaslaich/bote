@@ -1,19 +1,16 @@
 name: Release
-
 on:
   release:
     types:
       - published
-
 permissions:
   contents: read
-
 jobs:
   release:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-
+      - name: Checkout
+        uses: actions/checkout@v5
       - name: Resolve release version
         id: version
         # Strip a leading `v` from the release tag (e.g. v0.1.0 -> 0.1.0).
@@ -26,26 +23,20 @@ jobs:
           fi
           echo "version=${version}" >> "$GITHUB_OUTPUT"
           echo "Release version: ${version}"
-
-      - uses: actions/setup-java@v4
+      - name: Install Nix
+        uses: cachix/install-nix-action@v31
+      - name: Configure devenv cache
+        uses: cachix/cachix-action@v16
         with:
-          distribution: temurin
-          java-version: "21"
-
-      - uses: gradle/actions/setup-gradle@v4
-        with:
-          gradle-version: "8.14.4"
-
-      - name: Build, validate models, run tests
-        run: gradle build
-
+          name: devenv
+      - name: Install devenv
+        run: nix profile add nixpkgs#devenv
+      - name: Check formatting, build, validate models, run tests, verify golden files
+        run: devenv shell -- just ci
       - name: Publish to Maven Central
         env:
           ORG_GRADLE_PROJECT_mavenCentralUsername: ${{ secrets.MAVEN_CENTRAL_USERNAME }}
           ORG_GRADLE_PROJECT_mavenCentralPassword: ${{ secrets.MAVEN_CENTRAL_PASSWORD }}
           ORG_GRADLE_PROJECT_signingInMemoryKey: ${{ secrets.MAVEN_GPG_PRIVATE_KEY }}
           ORG_GRADLE_PROJECT_signingInMemoryKeyPassword: ${{ secrets.MAVEN_GPG_PASSPHRASE }}
-        run: >
-          gradle -Pversion=${{ steps.version.outputs.version }}
-          :publishAndReleaseToMavenCentral
-          :codegen:smithy-asyncapi:publishAndReleaseToMavenCentral
+        run: devenv shell -- just publish "${{ steps.version.outputs.version }}"
