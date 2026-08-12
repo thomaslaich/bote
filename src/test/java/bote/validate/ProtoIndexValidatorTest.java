@@ -18,7 +18,7 @@ class ProtoIndexValidatorTest {
         .getValidationEvents(Severity.ERROR);
   }
 
-@Test
+  @Test
   void fullyIndexedPayloadsAreValid() {
     String model =
         """
@@ -71,7 +71,7 @@ class ProtoIndexValidatorTest {
     assertTrue(events.isEmpty(), events::toString);
   }
 
-@Test
+  @Test
   void missingProtoIndexIsError() {
     String model =
         """
@@ -99,7 +99,7 @@ class ProtoIndexValidatorTest {
     assertTrue(validate(model).stream().anyMatch(e -> e.getMessage().contains("protoIndex")));
   }
 
-@Test
+  @Test
   void jsonProtocolPayloadsNeedNoProtoIndex() {
     String model =
         """

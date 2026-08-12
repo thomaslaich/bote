@@ -13,7 +13,7 @@ import software.amazon.smithy.model.shapes.ShapeId;
 class AsyncApiConverterTest {
 
   private static final String MODEL =
-      """
+"""
       $version: "2"
       namespace test
 
@@ -89,7 +89,7 @@ use bote#event
           userId: String
           status: String
       }
-      """;
+""";
 
   private Model assembleModel(String source) {
     return Model.assembler()
@@ -113,8 +113,7 @@ use bote#event
 
   private ObjectNode convertGrouped() {
     Model model = assembleModel(MODEL);
-    ServiceShape orders =
-        model.expectShape(ShapeId.from("test#OrderService"), ServiceShape.class);
+    ServiceShape orders = model.expectShape(ShapeId.from("test#OrderService"), ServiceShape.class);
     ServiceShape presence =
         model.expectShape(ShapeId.from("test#PresenceService"), ServiceShape.class);
     return new AsyncApiConverter(
@@ -125,7 +124,7 @@ use bote#event
         .convert();
   }
 
-@Test
+  @Test
   void emitsAsyncApi31Header() {
     ObjectNode doc = convert();
     assertEquals("3.1.0", doc.expectStringMember("asyncapi").getValue());
@@ -140,7 +139,7 @@ use bote#event
         info.expectStringMember("description").getValue());
   }
 
-@Test
+  @Test
   void mapsTopicConfigToKafkaChannelBinding() {
     ObjectNode kafka =
         convert()
@@ -159,7 +158,7 @@ use bote#event
             .intValue());
   }
 
-@Test
+  @Test
   void mapsCompactionToCleanupPolicy() {
     ObjectNode topicConfig =
         convert()
@@ -173,7 +172,7 @@ use bote#event
         topicConfig.expectArrayMember("cleanup.policy").get(0).get().expectStringNode().getValue());
   }
 
-@Test
+  @Test
   void groupedServicesCanContainKafkaAndRedisChannels() {
     ObjectNode channels = convertGrouped().expectObjectMember("channels");
     assertTrue(channels.getMember("orders").isPresent());
@@ -193,7 +192,7 @@ use bote#event
             .isPresent());
   }
 
-@Test
+  @Test
   void ownerPerspectiveReceivesCommandsAndSendsEvents() {
     ObjectNode doc = convert();
     ObjectNode operations = doc.expectObjectMember("operations");
@@ -210,7 +209,7 @@ use bote#event
         doc.expectObjectMember("info").expectStringMember("x-bote-perspective").getValue());
   }
 
-@Test
+  @Test
   void clientPerspectiveSendsCommandsAndReceivesEvents() {
     ObjectNode doc = convert(AsyncApiConverter.Perspective.CLIENT);
     ObjectNode operations = doc.expectObjectMember("operations");
@@ -225,7 +224,7 @@ use bote#event
         doc.expectObjectMember("info").expectStringMember("x-bote-perspective").getValue());
   }
 
-@Test
+  @Test
   void produceAndConsumeShareOneChannel() {
     ObjectNode doc = convert();
     // A single "orders" channel is produced even though two operations bind to it.
@@ -257,7 +256,7 @@ use bote#event
     assertEquals("#/channels/orders/messages/OrderEvent", receiveRef);
   }
 
-@Test
+  @Test
   void buildsMessageWithKeyHeaderAndPayloadRef() {
     ObjectNode message =
         convert()
@@ -285,7 +284,7 @@ use bote#event
             .isPresent());
   }
 
-@Test
+  @Test
   void envelopeDiscriminationWrapsEventPayloads() {
     // eventDiscrimination defaults to ENVELOPE: the event payload is the
     // single-key tagged-union object keyed by the streaming union member name.
@@ -308,7 +307,7 @@ use bote#event
         payload.expectArrayMember("required").get(0).get().expectStringNode().getValue());
   }
 
-@Test
+  @Test
   void headerDiscriminationEmitsTypeHeader() {
     String model =
         """
@@ -351,7 +350,7 @@ use bote#event
     assertEquals("measured", typeHeader.expectStringMember("const").getValue());
   }
 
-@Test
+  @Test
   void protobufServiceUsesBarePayloadsAndProtobufContentType() {
     String model =
         """
@@ -385,10 +384,11 @@ use bote#event
         assembled.expectShape(ShapeId.from("test#Telemetry"), ServiceShape.class);
     ObjectNode doc = new AsyncApiConverter(assembled, service).convert();
 
-    assertEquals(
-        "application/protobuf", doc.expectStringMember("defaultContentType").getValue());
+    assertEquals("application/protobuf", doc.expectStringMember("defaultContentType").getValue());
     ObjectNode message =
-        doc.expectObjectMember("components").expectObjectMember("messages").expectObjectMember("Alert");
+        doc.expectObjectMember("components")
+            .expectObjectMember("messages")
+            .expectObjectMember("Alert");
     assertEquals("application/protobuf", message.expectStringMember("contentType").getValue());
     // The proto oneof is the discriminator, so the payload stays bare.
     assertEquals(
@@ -396,7 +396,7 @@ use bote#event
         message.expectObjectMember("payload").expectStringMember("$ref").getValue());
   }
 
-@Test
+  @Test
   void schemasContainMessageClosureButNotStreamingWrapper() {
     ObjectNode schemas = convert().expectObjectMember("components").expectObjectMember("schemas");
     assertTrue(schemas.getMember("SubmitOrder").isPresent());
@@ -415,7 +415,7 @@ use bote#event
             .getValue());
   }
 
-@Test
+  @Test
   void headerMembersAreStrippedFromPayloadSchemas() {
     ObjectNode schemas = convert().expectObjectMember("components").expectObjectMember("schemas");
     // @kafkaHeader members travel only as Kafka headers, never in the JSON value.

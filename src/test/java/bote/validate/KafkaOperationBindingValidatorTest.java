@@ -35,7 +35,7 @@ class KafkaOperationBindingValidatorTest {
         .getValidationEvents(Severity.ERROR);
   }
 
-@Test
+  @Test
   void produceWithCommandInputIsValid() {
     String model =
         PREAMBLE.formatted("PublishOrder")
@@ -48,7 +48,7 @@ class KafkaOperationBindingValidatorTest {
     assertTrue(validate(model).isEmpty());
   }
 
-@Test
+  @Test
   void produceWithoutInputIsError() {
     String model =
         PREAMBLE.formatted("PublishOrder")
@@ -59,7 +59,7 @@ class KafkaOperationBindingValidatorTest {
     assertTrue(validate(model).stream().anyMatch(e -> e.getSeverity() == Severity.ERROR));
   }
 
-@Test
+  @Test
   void consumeWithStreamingUnionIsValid() {
     String model =
         PREAMBLE.formatted("ConsumeOrders")
@@ -76,7 +76,7 @@ class KafkaOperationBindingValidatorTest {
     assertTrue(validate(model).isEmpty());
   }
 
-@Test
+  @Test
   void consumeWithoutOutputIsError() {
     String model =
         PREAMBLE.formatted("ConsumeOrders")
@@ -87,7 +87,7 @@ class KafkaOperationBindingValidatorTest {
     assertTrue(validate(model).stream().anyMatch(e -> e.getSeverity() == Severity.ERROR));
   }
 
-@Test
+  @Test
   void consumeWithoutStreamingUnionIsError() {
     String model =
         PREAMBLE.formatted("ConsumeOrders")
@@ -100,7 +100,7 @@ class KafkaOperationBindingValidatorTest {
     assertTrue(validate(model).stream().anyMatch(e -> e.getSeverity() == Severity.ERROR));
   }
 
-@Test
+  @Test
   void plainOperationWithoutBrokerTraitsIsIgnored() {
     String model =
         PREAMBLE.formatted("PlainOp")
@@ -111,7 +111,7 @@ class KafkaOperationBindingValidatorTest {
     assertTrue(validate(model).isEmpty());
   }
 
-@Test
+  @Test
   void produceInputWithoutCommandTraitIsError() {
     String model =
         PREAMBLE.formatted("PublishOrder")
@@ -123,7 +123,7 @@ class KafkaOperationBindingValidatorTest {
     assertTrue(validate(model).stream().anyMatch(e -> e.getSeverity() == Severity.ERROR));
   }
 
-@Test
+  @Test
   void produceWithOutputIsError() {
     // No current protocol supports reply semantics, so produce-side outputs are rejected
     // even when the output carries @reply (reserved vocabulary).
@@ -140,7 +140,7 @@ class KafkaOperationBindingValidatorTest {
     assertTrue(validate(model).stream().anyMatch(e -> e.getSeverity() == Severity.ERROR));
   }
 
-@Test
+  @Test
   void brokerTraitOfAnotherProtocolIsError() {
     String model =
         """
@@ -162,7 +162,7 @@ class KafkaOperationBindingValidatorTest {
     assertTrue(validate(model).stream().anyMatch(e -> e.getMessage().contains("does not match")));
   }
 
-@Test
+  @Test
   void consumeStreamMembersMustBeEvents() {
     String model =
         PREAMBLE.formatted("ConsumeOrders")
@@ -178,7 +178,7 @@ class KafkaOperationBindingValidatorTest {
     assertTrue(validate(model).stream().anyMatch(e -> e.getSeverity() == Severity.ERROR));
   }
 
-@Test
+  @Test
   void noneDiscriminationAllowsSingleEventStream() {
     String model =
         """
@@ -203,7 +203,7 @@ class KafkaOperationBindingValidatorTest {
     assertTrue(validate(model).isEmpty());
   }
 
-@Test
+  @Test
   void noneDiscriminationRejectsMultiEventStream() {
     String model =
         """

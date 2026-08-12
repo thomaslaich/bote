@@ -17,13 +17,13 @@ import software.amazon.smithy.model.validation.AbstractValidator;
 import software.amazon.smithy.model.validation.ValidationEvent;
 
 /**
- * Enforces channel-level consistency across the operations that share a broker address, turning
- * the single-owner contract model into checked invariants:
+ * Enforces channel-level consistency across the operations that share a broker address, turning the
+ * single-owner contract model into checked invariants:
  *
  * <ul>
  *   <li>a channel address is owned by exactly one service
- *   <li>every operation on an address declares identical channel values (topic settings,
- *       {@code maxLen}, ...)
+ *   <li>every operation on an address declares identical channel values (topic settings, {@code
+ *       maxLen}, ...)
  *   <li>{@code @bote.infra#kafkaTopicConfig} is declared on at most one operation per address
  *   <li>at most one {@code @command} type per address (warning: bote does not yet specify how
  *       command types are discriminated on a shared channel)
@@ -32,7 +32,8 @@ import software.amazon.smithy.model.validation.ValidationEvent;
 public final class ChannelConsistencyValidator extends AbstractValidator {
 
   /** One broker's address vocabulary: its operation traits and their address member. */
-  private record Broker(String family, String addressMember, List<ShapeId> produce, List<ShapeId> consume) {}
+  private record Broker(
+      String family, String addressMember, List<ShapeId> produce, List<ShapeId> consume) {}
 
   private static final List<Broker> BROKERS =
       List.of(
@@ -116,7 +117,8 @@ public final class ChannelConsistencyValidator extends AbstractValidator {
     }
   }
 
-  private void validateChannel(String address, List<Binding> bindings, List<ValidationEvent> events) {
+  private void validateChannel(
+      String address, List<Binding> bindings, List<ValidationEvent> events) {
     Binding first = bindings.get(0);
 
     Set<ShapeId> owners = new LinkedHashSet<>();

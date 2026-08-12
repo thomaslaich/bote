@@ -17,13 +17,13 @@ import software.amazon.smithy.model.validation.ValidationEvent;
 
 /**
  * Validates that every member of every payload structure and streaming union reachable from a
- * {@code @kafkaProtobuf} service carries an explicit {@code alloy.proto#protoIndex}. Implicit
- * field numbering breaks the protobuf wire format when members are reordered or removed, which
- * defeats the point of a schema contract.
+ * {@code @kafkaProtobuf} service carries an explicit {@code alloy.proto#protoIndex}. Implicit field
+ * numbering breaks the protobuf wire format when members are reordered or removed, which defeats
+ * the point of a schema contract.
  *
- * <p>{@code @kafkaHeader} members need an index too, even though they travel only as Kafka
- * headers: Alloy requires indexes on all members of a shape or none, so the header member's
- * number is reserved rather than omitted.
+ * <p>{@code @kafkaHeader} members need an index too, even though they travel only as Kafka headers:
+ * Alloy requires indexes on all members of a shape or none, so the header member's number is
+ * reserved rather than omitted.
  */
 public final class ProtoIndexValidator extends AbstractValidator {
 

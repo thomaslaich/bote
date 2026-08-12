@@ -33,9 +33,8 @@ import software.amazon.smithy.model.traits.TitleTrait;
  * the chosen {@link Perspective}. With the default OWNER perspective the document describes the
  * contract owner: produce-side operations ({@code @kafkaProduce}, {@code @redisStreamAdd},
  * {@code @redisPublish} — the owner accepts commands) become {@code action: receive}, and
- * consume-side operations ({@code @kafkaConsume}, {@code @redisStreamRead},
- * {@code @redisSubscribe} — the owner emits events) become {@code action: send}. The CLIENT
- * perspective flips both.
+ * consume-side operations ({@code @kafkaConsume}, {@code @redisStreamRead}, {@code @redisSubscribe}
+ * — the owner emits events) become {@code action: send}. The CLIENT perspective flips both.
  *
  * <ul>
  *   <li>bote protocol service(s) -&gt; the AsyncAPI document
@@ -243,8 +242,8 @@ final class AsyncApiConverter {
   }
 
   /**
-   * A consume operation's output contains a member targeting a {@code @streaming} union; each
-   * union member is a possible message type, keyed here by its member name (the wire-level tag).
+   * A consume operation's output contains a member targeting a {@code @streaming} union; each union
+   * member is a possible message type, keyed here by its member name (the wire-level tag).
    */
   private Map<ShapeId, String> receivedMessages(OperationShape operation) {
     Map<ShapeId, String> result = new LinkedHashMap<>();
@@ -492,8 +491,8 @@ final class AsyncApiConverter {
   }
 
   /**
-   * Removes {@code @kafkaHeader}-bound properties from a structure's payload schema: header
-   * members travel only as Kafka headers, never in the serialized value.
+   * Removes {@code @kafkaHeader}-bound properties from a structure's payload schema: header members
+   * travel only as Kafka headers, never in the serialized value.
    */
   private Node stripHeaderMembers(String schemaName, Node schemaNode, Set<ShapeId> closure) {
     Optional<StructureShape> structure =
@@ -600,7 +599,12 @@ final class AsyncApiConverter {
       Optional<String> name =
           channelShape
               .findTrait(entry.getKey())
-              .map(t -> t.toNode().expectObjectNode().expectStringMember(entry.getValue()).getValue());
+              .map(
+                  t ->
+                      t.toNode()
+                          .expectObjectNode()
+                          .expectStringMember(entry.getValue())
+                          .getValue());
       if (name.isPresent()) {
         return name.get();
       }

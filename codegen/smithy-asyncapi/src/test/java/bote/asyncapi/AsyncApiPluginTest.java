@@ -19,7 +19,7 @@ import software.amazon.smithy.model.node.ObjectNode;
 class AsyncApiPluginTest {
 
   private static final String MODEL =
-      """
+"""
       $version: "2"
       namespace test
 use bote#kafkaJson
@@ -43,7 +43,7 @@ use bote#command
 @kafkaKey
           id: String
       }
-      """;
+""";
 
   private Set<String> run(ObjectNode settings) {
     Model model =
@@ -58,30 +58,29 @@ use bote#command
         .collect(Collectors.toSet());
   }
 
-@Test
+  @Test
   void noSettingDocumentsEveryKafkaService() {
     assertEquals(Set.of("A.asyncapi.json", "B.asyncapi.json"), run(Node.objectNode()));
   }
 
-@Test
+  @Test
   void serviceSettingTargetsOneService() {
     Set<String> files = run(Node.objectNodeBuilder().withMember("service", "test#A").build());
     assertEquals(Set.of("A.asyncapi.json"), files);
   }
 
-@Test
+  @Test
   void servicesSettingAggregatesOneDocument() {
     ObjectNode settings =
         Node.objectNodeBuilder()
             .withMember(
-                "services",
-                ArrayNode.builder().withValue("test#A").withValue("test#B").build())
+                "services", ArrayNode.builder().withValue("test#A").withValue("test#B").build())
             .withMember("filename", "Grouped.asyncapi.json")
             .build();
     assertEquals(Set.of("Grouped.asyncapi.json"), run(settings));
   }
 
-@Test
+  @Test
   void invalidPerspectiveSettingFails() {
     SmithyBuildException e =
         assertThrows(
@@ -90,7 +89,7 @@ use bote#command
     assertTrue(e.getMessage().contains("perspective"));
   }
 
-@Test
+  @Test
   void unknownServiceSettingFails() {
     SmithyBuildException e =
         assertThrows(

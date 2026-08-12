@@ -18,8 +18,8 @@ import software.amazon.smithy.model.validation.AbstractValidator;
 import software.amazon.smithy.model.validation.ValidationEvent;
 
 /**
- * Validates the operations of bote protocol services: every messaging operation carries exactly
- * one broker operation trait matching the service's protocol, produce-side operations take a
+ * Validates the operations of bote protocol services: every messaging operation carries exactly one
+ * broker operation trait matching the service's protocol, produce-side operations take a
  * {@code @command} input and no output (no current protocol supports replies), and consume-side
  * operations stream {@code @event} shapes. For {@code @kafkaJson} services with {@code
  * eventDiscrimination: NONE}, also enforces that streaming unions declare a single event type.
@@ -48,11 +48,16 @@ public final class OperationBindingValidator extends AbstractValidator {
   /** Protocol trait -> the broker operation traits its operations may carry. */
   private static final Map<ShapeId, Set<ShapeId>> PROTOCOL_OPS =
       Map.of(
-          KAFKA_JSON, KAFKA_OPS,
-          ShapeId.from("bote#kafkaAvro"), KAFKA_OPS,
-          ShapeId.from("bote#kafkaProtobuf"), KAFKA_OPS,
-          ShapeId.from("bote#redisStreamsJson"), REDIS_STREAM_OPS,
-          ShapeId.from("bote#redisPubSubJson"), REDIS_PUBSUB_OPS);
+          KAFKA_JSON,
+          KAFKA_OPS,
+          ShapeId.from("bote#kafkaAvro"),
+          KAFKA_OPS,
+          ShapeId.from("bote#kafkaProtobuf"),
+          KAFKA_OPS,
+          ShapeId.from("bote#redisStreamsJson"),
+          REDIS_STREAM_OPS,
+          ShapeId.from("bote#redisPubSubJson"),
+          REDIS_PUBSUB_OPS);
 
   @Override
   public List<ValidationEvent> validate(Model model) {

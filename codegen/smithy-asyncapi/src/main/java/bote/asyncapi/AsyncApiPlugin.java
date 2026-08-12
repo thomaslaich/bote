@@ -16,12 +16,12 @@ import software.amazon.smithy.model.shapes.ShapeId;
  * protocol traits ({@code @kafkaJson}, {@code @kafkaAvro}, {@code @kafkaProtobuf}, or Redis
  * protocol traits).
  *
- * <p>By default, one file is written per protocol service, named
- * {@code <ServiceName>.asyncapi.json}.
+ * <p>By default, one file is written per protocol service, named {@code
+ * <ServiceName>.asyncapi.json}.
  *
  * <p>Set {@code perspective} to choose whose viewpoint the document takes: {@code "owner"} (the
- * default — the document describes the contract owner, which receives commands and sends events)
- * or {@code "client"} (the document describes a client, which sends commands and receives events).
+ * default — the document describes the contract owner, which receives commands and sends events) or
+ * {@code "client"} (the document describes a client, which sends commands and receives events).
  *
  * <p>Set {@code service} to target exactly one service. Set {@code services} to aggregate multiple
  * protocol services into one application document:
@@ -63,7 +63,8 @@ public final class AsyncApiPlugin implements SmithyBuildPlugin {
                   List<ShapeId> result = new ArrayList<>();
                   array
                       .getElements()
-                      .forEach(node -> result.add(ShapeId.from(node.expectStringNode().getValue())));
+                      .forEach(
+                          node -> result.add(ShapeId.from(node.expectStringNode().getValue())));
                   return result;
                 });
     Optional<String> title = settings.getStringMember("title").map(n -> n.getValue());
@@ -77,11 +78,8 @@ public final class AsyncApiPlugin implements SmithyBuildPlugin {
 
     if (targets.isPresent()) {
       List<ServiceShape> services = resolveServices(model, targets.get());
-      ObjectNode document =
-          new AsyncApiConverter(model, services, title, perspective).convert();
-      context
-          .getFileManifest()
-          .writeJson(filename.orElse("AsyncApi.asyncapi.json"), document);
+      ObjectNode document = new AsyncApiConverter(model, services, title, perspective).convert();
+      context.getFileManifest().writeJson(filename.orElse("AsyncApi.asyncapi.json"), document);
       return;
     }
 
@@ -95,9 +93,7 @@ public final class AsyncApiPlugin implements SmithyBuildPlugin {
       }
       matched = true;
       ObjectNode document =
-          new AsyncApiConverter(
-                  model, List.of(service), Optional.empty(), perspective)
-              .convert();
+          new AsyncApiConverter(model, List.of(service), Optional.empty(), perspective).convert();
       context
           .getFileManifest()
           .writeJson(filename.orElse(service.getId().getName() + ".asyncapi.json"), document);
@@ -105,15 +101,12 @@ public final class AsyncApiPlugin implements SmithyBuildPlugin {
 
     if (target.isPresent() && !matched) {
       throw new SmithyBuildException(
-          "asyncapi: `service` "
-              + target.get()
-              + " is not a bote protocol service in the model.");
+          "asyncapi: `service` " + target.get() + " is not a bote protocol service in the model.");
     }
   }
 
   private AsyncApiConverter.Perspective resolvePerspective(ObjectNode settings) {
-    String value =
-        settings.getStringMember("perspective").map(n -> n.getValue()).orElse("owner");
+    String value = settings.getStringMember("perspective").map(n -> n.getValue()).orElse("owner");
     return switch (value) {
       case "owner" -> AsyncApiConverter.Perspective.OWNER;
       case "client" -> AsyncApiConverter.Perspective.CLIENT;

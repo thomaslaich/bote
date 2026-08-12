@@ -22,7 +22,7 @@ class ChannelConsistencyValidatorTest {
     return validate(model, severity).stream().anyMatch(e -> e.getMessage().contains(fragment));
   }
 
-@Test
+  @Test
   void twoServicesOnOneAddressIsError() {
     String model =
         """
@@ -50,7 +50,7 @@ class ChannelConsistencyValidatorTest {
     assertTrue(hasEvent(model, Severity.ERROR, "exactly one owning service"));
   }
 
-@Test
+  @Test
   void divergingChannelValuesIsError() {
     String model =
         """
@@ -83,7 +83,7 @@ class ChannelConsistencyValidatorTest {
     assertTrue(hasEvent(model, Severity.ERROR, "must be identical"));
   }
 
-@Test
+  @Test
   void agreedChannelValuesAreValid() {
     String model =
         """
@@ -116,7 +116,7 @@ class ChannelConsistencyValidatorTest {
     assertTrue(validate(model, Severity.ERROR).isEmpty());
   }
 
-@Test
+  @Test
   void topicConfigOnTwoOperationsOfOneAddressIsError() {
     String model =
         """
@@ -152,7 +152,7 @@ class ChannelConsistencyValidatorTest {
     assertTrue(hasEvent(model, Severity.ERROR, "at most one operation per topic"));
   }
 
-@Test
+  @Test
   void multipleCommandTypesOnOneAddressIsWarning() {
     String model =
         """
