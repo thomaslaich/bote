@@ -10,14 +10,27 @@ and bote aims to follow [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+## [0.1.0] - 2026-09-02
+
 ### Added
 
+- Smithy protocol and binding traits for Kafka JSON, Avro, and Protobuf;
+  Redis Streams JSON; and Redis Pub/Sub JSON.
+- Broker-independent `@command`, `@event`, and `@reply` payload roles, plus
+  Kafka key, header, event-discrimination, Avro compatibility, and topic
+  infrastructure traits.
+- Build-time validation for protocol bindings, channel ownership and shared
+  configuration, Kafka keys, and explicit Protobuf field indexes.
 - Redis Streams request/reply operations: `@redisStreamAdd` operations may
   return an `@reply` shape using a dynamic Pub/Sub reply channel and
   correlation ID.
-- AsyncAPI reply objects and correlation metadata for Redis Streams
-  request/reply.
+- An AsyncAPI 3.1 generator with owner and client perspectives, Kafka channel
+  bindings, JSON Schema payloads, and Redis Streams reply and correlation
+  metadata.
+- Kafka and Redis example models with checked-in AsyncAPI documents for JSON,
+  Avro, Protobuf, Streams, and Pub/Sub contracts.
+- Maven Central publication for the `bote` and `smithy-asyncapi` artifacts,
+  targeting Java 21.
 
-### Changed
-
-- The `bote` and `smithy-asyncapi` artifacts now target Java 21.
+[Unreleased]: https://github.com/thomaslaich/bote/compare/v0.1.0...HEAD
+[0.1.0]: https://github.com/thomaslaich/bote/releases/tag/v0.1.0

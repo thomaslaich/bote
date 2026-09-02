@@ -10,11 +10,6 @@ bote models Kafka and Redis messaging contracts in Smithy. It provides
 protocol and binding traits, build-time validators, and a reference AsyncAPI
 3.1 generator.
 
-## Why?
-
-Messaging APIs deserve the same contract-first modeling, validation, and code
-generation as HTTP APIs.
-
 ## Protocols
 
 | Service trait | Binding traits | Encoding |
