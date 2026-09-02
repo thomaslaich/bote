@@ -24,11 +24,11 @@ structure command {}
 
 /// Marks a payload structure as a reply message.
 ///
-/// Reserved vocabulary: no current protocol supports replies. Request-reply
-/// needs broker-native reply plumbing (a reply address and correlation id,
-/// as in AMQP's reply_to/correlation_id); Kafka and Redis only offer it by
-/// convention, so their protocols do not include this trait. It will be
-/// wired into a future protocol with first-class reply semantics.
+/// Redis Streams @redisStreamAdd operations with a @reply output use
+/// request/reply semantics: the requester supplies a temporary Pub/Sub reply
+/// channel and a correlation ID in the transport metadata. The reply payload
+/// is the bare serialization of this structure. Kafka operations and Redis
+/// @redisPublish operations do not support reply outputs.
 @trait(
     selector: "structure"
     conflicts: [bote#event, bote#command]

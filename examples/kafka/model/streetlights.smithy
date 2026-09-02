@@ -1,20 +1,23 @@
 $version: "2"
 
-// The streetlight device contract. The device/product owns the messages because
-// it defines the events it emits and the commands it accepts.
+// Avro contract: the device/product owns the messages because it defines the
+// events it emits and the commands it accepts. Payload schemas are registered
+// with a Schema Registry using topic-name subjects.
 namespace examples.kafka.streetlights
 
+use bote#avroCompatibility
 use bote#command
 use bote#event
+use bote#kafkaAvro
 use bote#kafkaConsume
 use bote#kafkaHeader
-use bote#kafkaJson
 use bote#kafkaKey
 use bote#kafkaProduce
 
 /// The streetlight device API: clients consume lighting events and produce dim commands.
 @title("Streetlight Device API")
-@kafkaJson
+@avroCompatibility(mode: "BACKWARD")
+@kafkaAvro
 service StreetlightDevice {
     version: "1.0.0"
     operations: [

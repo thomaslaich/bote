@@ -14,7 +14,8 @@ import software.amazon.smithy.model.shapes.ShapeId;
 /**
  * A {@link SmithyBuildPlugin} that emits AsyncAPI 3.1.0 documents from services annotated with bote
  * protocol traits ({@code @kafkaJson}, {@code @kafkaAvro}, {@code @kafkaProtobuf}, or Redis
- * protocol traits).
+ * protocol traits). Redis Streams add operations with a {@code @reply} output are emitted as
+ * AsyncAPI request/reply operations with a dynamic reply address.
  *
  * <p>By default, one file is written per protocol service, named {@code
  * <ServiceName>.asyncapi.json}.

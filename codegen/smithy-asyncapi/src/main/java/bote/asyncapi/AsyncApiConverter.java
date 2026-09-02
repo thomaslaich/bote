@@ -46,6 +46,9 @@ import software.amazon.smithy.model.traits.TitleTrait;
  *   <li>{@code @kafkaKey} -&gt; the Kafka message binding key
  *   <li>{@code @kafkaHeader} -&gt; the message headers schema; header members are stripped from
  *       payload schemas because they travel only as Kafka headers
+ *   <li>a Redis Streams add operation with a {@code @reply} output -&gt; an operation reply on a
+ *       dynamic Pub/Sub channel, addressed by {@code reply_to} and matched by {@code
+ *       correlation_id}
  *   <li>{@code @bote.infra#kafkaTopicConfig} -&gt; Kafka channel binding partitions/replicas/config
  * </ul>
  */
@@ -55,6 +58,8 @@ final class AsyncApiConverter {
   private static final String KAFKA_BINDING_VERSION = "0.5.0";
   private static final String SCHEMAS_POINTER = "#/components/schemas";
   private static final String TYPE_HEADER_NAME = "bote-type";
+  private static final String REPLY_TO_HEADER_NAME = "reply_to";
+  private static final String CORRELATION_ID_HEADER_NAME = "correlation_id";
 
   private static final ShapeId KAFKA_JSON = ShapeId.from("bote#kafkaJson");
   private static final ShapeId KAFKA_AVRO = ShapeId.from("bote#kafkaAvro");
@@ -115,8 +120,13 @@ final class AsyncApiConverter {
   private final Map<ShapeId, String> envelopeNames = new LinkedHashMap<>();
   // Event shape -> type header value (streaming union member name), for HEADER discrimination.
   private final Map<ShapeId, String> typeHeaderNames = new LinkedHashMap<>();
+  // Redis Streams request/reply message shapes, which carry bote transport metadata.
+  private final Set<ShapeId> requestMessageShapes = new LinkedHashSet<>();
+  private final Set<ShapeId> replyMessageShapes = new LinkedHashSet<>();
   // topic name -> accumulated channel state.
   private final Map<String, Channel> channels = new LinkedHashMap<>();
+  // synthetic AsyncAPI channels for dynamic Redis replies.
+  private final Map<String, ShapeId> replyChannels = new LinkedHashMap<>();
   // operation name -> operation object.
   private final Map<String, Node> operations = new LinkedHashMap<>();
 
@@ -194,10 +204,18 @@ final class AsyncApiConverter {
           String action = perspective == Perspective.OWNER ? "receive" : "send";
           Map<ShapeId, String> messages = new LinkedHashMap<>();
           messages.put(operation.getInputShape(), null);
-          addOperation(operation, action, messages, contentType, discrimination);
+          Optional<ShapeId> reply =
+              operation.hasTrait(REDIS_STREAM_ADD) ? operation.getOutput() : Optional.empty();
+          addOperation(operation, action, messages, contentType, discrimination, reply);
         } else if (CONSUME_TRAITS.stream().anyMatch(operation::hasTrait)) {
           String action = perspective == Perspective.OWNER ? "send" : "receive";
-          addOperation(operation, action, receivedMessages(operation), contentType, discrimination);
+          addOperation(
+              operation,
+              action,
+              receivedMessages(operation),
+              contentType,
+              discrimination,
+              Optional.empty());
         }
       }
     }
@@ -219,7 +237,8 @@ final class AsyncApiConverter {
       String action,
       Map<ShapeId, String> messages,
       String contentType,
-      Discrimination discrimination) {
+      Discrimination discrimination,
+      Optional<ShapeId> reply) {
     String address = channelAddress(operation);
     Channel channel =
         channels.computeIfAbsent(address, a -> new Channel(a, channelBindings(a, operation)));
@@ -237,8 +256,22 @@ final class AsyncApiConverter {
       }
       channel.messages.add(messageId);
     }
+
+    String operationName = operationName(operation);
+    Optional<String> replyChannel = Optional.empty();
+    if (reply.isPresent()) {
+      ShapeId replyId = reply.get();
+      requestMessageShapes.addAll(messages.keySet());
+      replyMessageShapes.add(replyId);
+      messageShapes.add(replyId);
+      messageContentTypes.putIfAbsent(replyId, contentType);
+      String channelName = operationName + "Reply";
+      replyChannels.put(channelName, replyId);
+      replyChannel = Optional.of(channelName);
+    }
     operations.put(
-        operationName(operation), operationNode(operation, action, address, messages.keySet()));
+        operationName,
+        operationNode(operation, action, address, messages.keySet(), replyChannel, reply));
   }
 
   /**
@@ -269,7 +302,12 @@ final class AsyncApiConverter {
   }
 
   private Node operationNode(
-      OperationShape operation, String action, String topic, Set<ShapeId> messages) {
+      OperationShape operation,
+      String action,
+      String topic,
+      Set<ShapeId> messages,
+      Optional<String> replyChannel,
+      Optional<ShapeId> replyMessage) {
     ArrayNode.Builder refs = ArrayNode.builder();
     for (ShapeId messageId : messages) {
       refs.withValue(ref("#/channels/" + topic + "/messages/" + messageId.getName()));
@@ -279,6 +317,25 @@ final class AsyncApiConverter {
             .withMember("action", action)
             .withMember("channel", ref("#/channels/" + topic))
             .withMember("messages", refs.build());
+    if (replyChannel.isPresent() && replyMessage.isPresent()) {
+      String channel = replyChannel.get();
+      ShapeId message = replyMessage.get();
+      builder.withMember(
+          "reply",
+          Node.objectNodeBuilder()
+              .withMember(
+                  "address",
+                  Node.objectNodeBuilder()
+                      .withMember("location", "$message.header#/" + REPLY_TO_HEADER_NAME)
+                      .build())
+              .withMember("channel", ref("#/channels/" + channel))
+              .withMember(
+                  "messages",
+                  ArrayNode.builder()
+                      .withValue(ref("#/channels/" + channel + "/messages/" + message.getName()))
+                      .build())
+              .build());
+    }
     documentation(operation).ifPresent(doc -> builder.withMember("summary", doc));
     return builder.build();
   }
@@ -299,6 +356,20 @@ final class AsyncApiConverter {
         channelNode.withMember("bindings", channel.bindings);
       }
       builder.withMember(channel.topic, channelNode.build());
+    }
+    for (Map.Entry<String, ShapeId> replyChannel : replyChannels.entrySet()) {
+      ShapeId replyMessage = replyChannel.getValue();
+      builder.withMember(
+          replyChannel.getKey(),
+          Node.objectNodeBuilder()
+              .withMember(
+                  "messages",
+                  Node.objectNodeBuilder()
+                      .withMember(
+                          replyMessage.getName(),
+                          ref("#/components/messages/" + replyMessage.getName()))
+                      .build())
+              .build());
     }
     return builder.build();
   }
@@ -400,6 +471,13 @@ final class AsyncApiConverter {
     if (headers != null) {
       message.withMember("headers", headers);
     }
+    if (requestMessageShapes.contains(messageId) || replyMessageShapes.contains(messageId)) {
+      message.withMember(
+          "correlationId",
+          Node.objectNodeBuilder()
+              .withMember("location", "$message.header#/" + CORRELATION_ID_HEADER_NAME)
+              .build());
+    }
 
     return message.build();
   }
@@ -429,7 +507,22 @@ final class AsyncApiConverter {
 
   private Node buildHeaders(ShapeId messageId, StructureShape structure) {
     ObjectNode.Builder properties = Node.objectNodeBuilder();
+    ArrayNode.Builder required = ArrayNode.builder();
     boolean any = false;
+
+    if (requestMessageShapes.contains(messageId)) {
+      properties.withMember(
+          REPLY_TO_HEADER_NAME, Node.objectNodeBuilder().withMember("type", "string").build());
+      required.withValue(REPLY_TO_HEADER_NAME);
+      any = true;
+    }
+    if (requestMessageShapes.contains(messageId) || replyMessageShapes.contains(messageId)) {
+      properties.withMember(
+          CORRELATION_ID_HEADER_NAME,
+          Node.objectNodeBuilder().withMember("type", "string").build());
+      required.withValue(CORRELATION_ID_HEADER_NAME);
+      any = true;
+    }
 
     String typeHeader = typeHeaderNames.get(messageId);
     if (typeHeader != null) {
@@ -455,10 +548,15 @@ final class AsyncApiConverter {
     if (!any) {
       return null;
     }
-    return Node.objectNodeBuilder()
-        .withMember("type", "object")
-        .withMember("properties", properties.build())
-        .build();
+    ObjectNode.Builder headers =
+        Node.objectNodeBuilder()
+            .withMember("type", "object")
+            .withMember("properties", properties.build());
+    ArrayNode requiredNode = required.build();
+    if (!requiredNode.isEmpty()) {
+      headers.withMember("required", requiredNode);
+    }
+    return headers.build();
   }
 
   /** Generates the JSON Schema definitions for every referenced message shape and its closure. */

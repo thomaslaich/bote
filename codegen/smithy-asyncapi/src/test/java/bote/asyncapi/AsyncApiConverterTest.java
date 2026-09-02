@@ -439,4 +439,86 @@ use bote#event
             .getMember("orderId")
             .isPresent());
   }
+
+  @Test
+  void redisStreamReplyUsesDynamicPubSubChannelAndCorrelationMetadata() {
+    String model =
+        """
+        $version: "2"
+        namespace test
+        use bote#redisStreamsJson
+        use bote#redisStreamAdd
+        use bote#command
+        use bote#reply
+
+        @redisStreamsJson
+        service LookupService { operations: [Lookup] }
+
+        @redisStreamAdd(stream: "lookups")
+        operation Lookup { input: LookupRequest, output: LookupReply }
+
+        @command
+        structure LookupRequest { id: String }
+
+        @reply
+        structure LookupReply { value: String }
+        """;
+    Model assembled = assembleModel(model);
+    ServiceShape service =
+        assembled.expectShape(ShapeId.from("test#LookupService"), ServiceShape.class);
+    ObjectNode doc = new AsyncApiConverter(assembled, service).convert();
+
+    ObjectNode operation = doc.expectObjectMember("operations").expectObjectMember("Lookup");
+    ObjectNode reply = operation.expectObjectMember("reply");
+    assertEquals(
+        "$message.header#/reply_to",
+        reply.expectObjectMember("address").expectStringMember("location").getValue());
+    assertEquals(
+        "#/channels/LookupReply",
+        reply.expectObjectMember("channel").expectStringMember("$ref").getValue());
+    assertEquals(
+        "#/channels/LookupReply/messages/LookupReply",
+        reply
+            .expectArrayMember("messages")
+            .get(0)
+            .get()
+            .expectObjectNode()
+            .expectStringMember("$ref")
+            .getValue());
+
+    ObjectNode replyChannel = doc.expectObjectMember("channels").expectObjectMember("LookupReply");
+    assertFalse(replyChannel.getMember("address").isPresent());
+    assertTrue(replyChannel.expectObjectMember("messages").getMember("LookupReply").isPresent());
+
+    ObjectNode requestMessage =
+        doc.expectObjectMember("components")
+            .expectObjectMember("messages")
+            .expectObjectMember("LookupRequest");
+    ObjectNode requestHeaders = requestMessage.expectObjectMember("headers");
+    assertTrue(requestHeaders.expectObjectMember("properties").getMember("reply_to").isPresent());
+    assertTrue(
+        requestHeaders.expectObjectMember("properties").getMember("correlation_id").isPresent());
+    assertEquals(
+        "$message.header#/correlation_id",
+        requestMessage
+            .expectObjectMember("correlationId")
+            .expectStringMember("location")
+            .getValue());
+
+    ObjectNode replyMessage =
+        doc.expectObjectMember("components")
+            .expectObjectMember("messages")
+            .expectObjectMember("LookupReply");
+    assertTrue(
+        replyMessage
+            .expectObjectMember("headers")
+            .expectObjectMember("properties")
+            .getMember("correlation_id")
+            .isPresent());
+    assertTrue(
+        doc.expectObjectMember("components")
+            .expectObjectMember("schemas")
+            .getMember("LookupReply")
+            .isPresent());
+  }
 }

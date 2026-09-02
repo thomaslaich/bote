@@ -125,8 +125,7 @@ class KafkaOperationBindingValidatorTest {
 
   @Test
   void produceWithOutputIsError() {
-    // No current protocol supports reply semantics, so produce-side outputs are rejected
-    // even when the output carries @reply (reserved vocabulary).
+    // Redis Streams support @reply, but Kafka produce-side outputs remain invalid.
     String model =
         PREAMBLE.formatted("PublishOrder")
             + """

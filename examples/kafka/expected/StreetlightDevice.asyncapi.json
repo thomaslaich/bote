@@ -6,7 +6,7 @@
         "x-bote-perspective": "owner",
         "description": "The streetlight device API: clients consume lighting events and produce dim commands."
     },
-    "defaultContentType": "application/json",
+    "defaultContentType": "application/avro",
     "channels": {
         "smartylighting.streetlights.lighting.measured": {
             "address": "smartylighting.streetlights.lighting.measured",
@@ -73,17 +73,9 @@
             "LightMeasured": {
                 "name": "LightMeasured",
                 "title": "LightMeasured",
-                "contentType": "application/json",
+                "contentType": "application/avro",
                 "payload": {
-                    "type": "object",
-                    "properties": {
-                        "lightMeasured": {
-                            "$ref": "#/components/schemas/LightMeasured"
-                        }
-                    },
-                    "required": [
-                        "lightMeasured"
-                    ]
+                    "$ref": "#/components/schemas/LightMeasured"
                 },
                 "summary": "Light intensity reported by a streetlight.",
                 "bindings": {
@@ -106,7 +98,7 @@
             "DimLightCommand": {
                 "name": "DimLightCommand",
                 "title": "DimLightCommand",
-                "contentType": "application/json",
+                "contentType": "application/avro",
                 "payload": {
                     "$ref": "#/components/schemas/DimLightCommand"
                 },

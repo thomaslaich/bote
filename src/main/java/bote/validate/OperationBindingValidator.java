@@ -20,9 +20,10 @@ import software.amazon.smithy.model.validation.ValidationEvent;
 /**
  * Validates the operations of bote protocol services: every messaging operation carries exactly one
  * broker operation trait matching the service's protocol, produce-side operations take a
- * {@code @command} input and no output (no current protocol supports replies), and consume-side
- * operations stream {@code @event} shapes. For {@code @kafkaJson} services with {@code
- * eventDiscrimination: NONE}, also enforces that streaming unions declare a single event type.
+ * {@code @command} input, Redis Streams add operations may additionally return a {@code @reply},
+ * Kafka and Redis Pub/Sub produce-side operations have no output, and consume-side operations
+ * stream {@code @event} shapes. For {@code @kafkaJson} services with {@code eventDiscrimination:
+ * NONE}, also enforces that streaming unions declare a single event type.
  */
 public final class OperationBindingValidator extends AbstractValidator {
 
@@ -34,6 +35,7 @@ public final class OperationBindingValidator extends AbstractValidator {
   private static final ShapeId REDIS_SUBSCRIBE = ShapeId.from("bote#redisSubscribe");
   private static final ShapeId COMMAND = ShapeId.from("bote#command");
   private static final ShapeId EVENT = ShapeId.from("bote#event");
+  private static final ShapeId REPLY = ShapeId.from("bote#reply");
   private static final ShapeId KAFKA_JSON = ShapeId.from("bote#kafkaJson");
 
   private static final Set<ShapeId> PRODUCE_TRAITS =
@@ -159,14 +161,31 @@ public final class OperationBindingValidator extends AbstractValidator {
                     brokerTrait.getName(), inputId, COMMAND)));
       }
     }
-    if (operation.getOutput().isPresent()) {
+    if (operation.getOutput().isEmpty()) {
+      return;
+    }
+
+    if (!brokerTrait.equals(REDIS_STREAM_ADD)) {
+      String transport = brokerTrait.equals(KAFKA_PRODUCE) ? "Kafka" : "Redis Pub/Sub";
       events.add(
           error(
               operation,
               String.format(
-                  "@%s operations must not define an output: no current protocol "
-                      + "supports reply semantics.",
-                  brokerTrait.getName())));
+                  "@%s operations must not define an output: %s does not provide "
+                      + "request/reply semantics in this protocol.",
+                  brokerTrait.getName(), transport)));
+      return;
+    }
+
+    ShapeId outputId = operation.getOutput().get();
+    if (!model.expectShape(outputId).hasTrait(REPLY)) {
+      events.add(
+          error(
+              operation,
+              String.format(
+                  "@%s output shape '%s' must be annotated with %s. A Redis Streams add "
+                      + "operation with no output remains fire-and-forget.",
+                  brokerTrait.getName(), outputId, REPLY)));
     }
   }
 

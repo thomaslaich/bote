@@ -13,15 +13,25 @@ use smithy.api#protocolDefinition
 /// structure. @event values are wrapped in a single-key envelope whose key is
 /// the @streaming union member name (the restJson1 tagged-union idiom), so
 /// consumers of a multi-event stream can tell event types apart.
+///
+/// An @redisStreamAdd operation with a @reply output is request/reply. The
+/// request carries reply_to and correlation_id transport metadata. The
+/// requester listens on the temporary Pub/Sub channel named by reply_to before
+/// adding the request to the stream. Owner replicas consume requests through
+/// one shared consumer group, so each delivery is assigned to one replica; it
+/// publishes one reply to reply_to and echoes correlation_id. Requests can be
+/// redelivered after failures. Reply delivery is at-most-once even though the
+/// request itself is durable.
 @protocolDefinition(
-    traits: [bote#redisStreamAdd, bote#redisStreamRead, bote#event, bote#command]
+    traits: [bote#redisStreamAdd, bote#redisStreamRead, bote#event, bote#command, bote#reply]
 )
 @trait(selector: "service")
 structure redisStreamsJson {}
 
 /// Marks an operation as an XADD capability: clients may append the
 /// operation's input — a @command structure — to the given Redis stream.
-/// Add operations must not define an output.
+/// With no output the operation is fire-and-forget. An output annotated with
+/// @reply makes it request/reply using a temporary Pub/Sub reply channel.
 @trait(
     selector: "operation"
     conflicts: [bote#redisStreamRead]
@@ -62,7 +72,9 @@ structure redisStreamRead {
 ///
 /// Clients PUBLISH JSON messages to a channel (@redisPublish) and SUBSCRIBE
 /// to them (@redisSubscribe). Pub/Sub is fire-and-forget: messages are not
-/// persisted, there is no replay, and the channel carries no configuration.
+/// persisted, there is no replay, every active subscriber receives each
+/// message, and the channel carries no configuration. Publish operations must
+/// not define an output; request/reply uses Redis Streams instead.
 ///
 /// Wire rules: @command values are the bare JSON serialization of their
 /// structure. @event values are wrapped in a single-key envelope whose key is

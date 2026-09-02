@@ -18,6 +18,21 @@
                     "$ref": "#/components/messages/ChatMessagePosted"
                 }
             }
+        },
+        "chat:room-status": {
+            "address": "chat:room-status",
+            "messages": {
+                "GetRoomStatusRequest": {
+                    "$ref": "#/components/messages/GetRoomStatusRequest"
+                }
+            }
+        },
+        "GetRoomStatusReply": {
+            "messages": {
+                "GetRoomStatusReply": {
+                    "$ref": "#/components/messages/GetRoomStatusReply"
+                }
+            }
         }
     },
     "operations": {
@@ -32,6 +47,31 @@
                 }
             ],
             "summary": "Post a chat message to the room stream."
+        },
+        "GetRoomStatus": {
+            "action": "receive",
+            "channel": {
+                "$ref": "#/channels/chat:room-status"
+            },
+            "messages": [
+                {
+                    "$ref": "#/channels/chat:room-status/messages/GetRoomStatusRequest"
+                }
+            ],
+            "reply": {
+                "address": {
+                    "location": "$message.header#/reply_to"
+                },
+                "channel": {
+                    "$ref": "#/channels/GetRoomStatusReply"
+                },
+                "messages": [
+                    {
+                        "$ref": "#/channels/GetRoomStatusReply/messages/GetRoomStatusReply"
+                    }
+                ]
+            },
+            "summary": "Get the current status of a room through Redis Streams request/reply."
         },
         "ReadMessages": {
             "action": "send",
@@ -56,6 +96,56 @@
                     "$ref": "#/components/schemas/PostChatMessage"
                 },
                 "summary": "Command to post a chat message to a room."
+            },
+            "GetRoomStatusRequest": {
+                "name": "GetRoomStatusRequest",
+                "title": "GetRoomStatusRequest",
+                "contentType": "application/json",
+                "payload": {
+                    "$ref": "#/components/schemas/GetRoomStatusRequest"
+                },
+                "summary": "Request the current status of a room.",
+                "headers": {
+                    "type": "object",
+                    "properties": {
+                        "reply_to": {
+                            "type": "string"
+                        },
+                        "correlation_id": {
+                            "type": "string"
+                        }
+                    },
+                    "required": [
+                        "reply_to",
+                        "correlation_id"
+                    ]
+                },
+                "correlationId": {
+                    "location": "$message.header#/correlation_id"
+                }
+            },
+            "GetRoomStatusReply": {
+                "name": "GetRoomStatusReply",
+                "title": "GetRoomStatusReply",
+                "contentType": "application/json",
+                "payload": {
+                    "$ref": "#/components/schemas/GetRoomStatusReply"
+                },
+                "summary": "The current status of a room.",
+                "headers": {
+                    "type": "object",
+                    "properties": {
+                        "correlation_id": {
+                            "type": "string"
+                        }
+                    },
+                    "required": [
+                        "correlation_id"
+                    ]
+                },
+                "correlationId": {
+                    "location": "$message.header#/correlation_id"
+                }
             },
             "ChatMessagePosted": {
                 "name": "ChatMessagePosted",
@@ -111,6 +201,27 @@
                         "type": "string",
                         "maxLength": 4000,
                         "minLength": 1
+                    }
+                }
+            },
+            "GetRoomStatusReply": {
+                "type": "object",
+                "description": "The current status of a room.",
+                "properties": {
+                    "roomId": {
+                        "type": "string"
+                    },
+                    "activeUsers": {
+                        "type": "integer"
+                    }
+                }
+            },
+            "GetRoomStatusRequest": {
+                "type": "object",
+                "description": "Request the current status of a room.",
+                "properties": {
+                    "roomId": {
+                        "type": "string"
                     }
                 }
             }
