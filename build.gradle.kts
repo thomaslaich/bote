@@ -64,7 +64,7 @@ mavenPublishing {
         description.set(
             "Smithy trait library for messaging contracts (Kafka, Redis): trait definitions, protocol specs, and validators."
         )
-        url.set("https://github.com/thomaslaich/bote")
+        url.set("https://github.com/toml-ai/bote")
         inceptionYear.set("2026")
         licenses {
             license {
@@ -81,9 +81,9 @@ mavenPublishing {
             }
         }
         scm {
-            url.set("https://github.com/thomaslaich/bote")
-            connection.set("scm:git:git://github.com/thomaslaich/bote.git")
-            developerConnection.set("scm:git:ssh://git@github.com/thomaslaich/bote.git")
+            url.set("https://github.com/toml-ai/bote")
+            connection.set("scm:git:git://github.com/toml-ai/bote.git")
+            developerConnection.set("scm:git:ssh://git@github.com/toml-ai/bote.git")
         }
     }
 }

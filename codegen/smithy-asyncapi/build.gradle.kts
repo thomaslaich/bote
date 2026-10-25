@@ -61,7 +61,7 @@ mavenPublishing {
         description.set(
             "Smithy build plugin that generates AsyncAPI 3.1 documents from bote messaging contracts."
         )
-        url.set("https://github.com/thomaslaich/bote")
+        url.set("https://github.com/toml-ai/bote")
         inceptionYear.set("2026")
         licenses {
             license {
@@ -78,9 +78,9 @@ mavenPublishing {
             }
         }
         scm {
-            url.set("https://github.com/thomaslaich/bote")
-            connection.set("scm:git:git://github.com/thomaslaich/bote.git")
-            developerConnection.set("scm:git:ssh://git@github.com/thomaslaich/bote.git")
+            url.set("https://github.com/toml-ai/bote")
+            connection.set("scm:git:git://github.com/toml-ai/bote.git")
+            developerConnection.set("scm:git:ssh://git@github.com/toml-ai/bote.git")
         }
     }
 }
