@@ -15,7 +15,7 @@ stage:
     gradle publishAllPublicationsToStagingRepository
 
 # Build and test the C# runtime and the code the C# generator emits. The Redis integration tests run
-# when BOTE_TEST_REDIS points at a disposable Redis (e.g. `redis-server --port 6399 --daemonize yes`).
+# when BOTE_TEST_REDIS points at a Redis; `devenv test` starts one and sets it.
 dotnet-test: stage
     # NSmithy caches resolved plugins by coordinate; drop it so the freshly staged snapshot is used.
     rm -rf dotnet/tests/Bote.Messaging.Generated.Tests/obj

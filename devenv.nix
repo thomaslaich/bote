@@ -13,9 +13,16 @@
 
   packages = [
     pkgs.just
-    # Broker for the Redis integration tests (BOTE_TEST_REDIS).
     pkgs.redis
   ];
+
+  # `devenv test` runs the CI pipeline with a throwaway Redis for the Redis integration tests.
+  enterTest = ''
+    redis-server --port 6399 --save "" --appendonly no --daemonize yes
+    trap 'redis-cli -p 6399 shutdown nosave' EXIT
+    wait_for_port 6399
+    BOTE_TEST_REDIS=localhost:6399 just ci
+  '';
 
   env.DOTNET_CLI_TELEMETRY_OPTOUT = "1";
   env.DOTNET_NOLOGO = "1";
