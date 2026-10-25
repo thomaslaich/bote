@@ -1,0 +1,75 @@
+{
+  "version": "1.0",
+  "sources": [
+    "model"
+  ],
+  "maven": {
+    "dependencies": [
+      "io.github.thomaslaich.bote:smithy-csharp-codegen:0.1.0-SNAPSHOT"
+    ],
+    "repositories": [
+      {
+        "url": "file://${BOTE_MAVEN_REPO}"
+      },
+      {
+        "url": "https://repo.maven.apache.org/maven2"
+      }
+    ]
+  },
+  "projections": {
+    "envelope": {
+      "plugins": {
+        "csharp-codegen": {
+          "service": "tests.envelope#Device",
+          "baseNamespace": "",
+          "generateDependencyInjection": true
+        }
+      }
+    },
+    "header": {
+      "plugins": {
+        "csharp-codegen": {
+          "service": "tests.header#Device",
+          "baseNamespace": "",
+          "generateDependencyInjection": true
+        }
+      }
+    },
+    "none": {
+      "plugins": {
+        "csharp-codegen": {
+          "service": "tests.none#Device",
+          "baseNamespace": "",
+          "generateDependencyInjection": true
+        }
+      }
+    },
+    "redisstreams": {
+      "plugins": {
+        "csharp-codegen": {
+          "service": "tests.redisstreams#ChatRoom",
+          "baseNamespace": "",
+          "generateDependencyInjection": true
+        }
+      }
+    },
+    "redisreply": {
+      "plugins": {
+        "csharp-codegen": {
+          "service": "tests.redisreply#Inventory",
+          "baseNamespace": "",
+          "generateDependencyInjection": true
+        }
+      }
+    },
+    "redispubsub": {
+      "plugins": {
+        "csharp-codegen": {
+          "service": "tests.redispubsub#ChatRoom",
+          "baseNamespace": "",
+          "generateDependencyInjection": true
+        }
+      }
+    }
+  }
+}

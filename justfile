@@ -10,6 +10,17 @@ build:
 test:
     gradle test
 
+# Stage the trait library and the C# generator in build/maven-repo, where the .NET tests resolve them
+stage:
+    gradle publishAllPublicationsToStagingRepository
+
+# Build and test the C# runtime and the code the C# generator emits. The Redis integration tests run
+# when BOTE_TEST_REDIS points at a Redis; `devenv test` starts one and sets it.
+dotnet-test: stage
+    # NSmithy caches resolved plugins by coordinate; drop it so the freshly staged snapshot is used.
+    rm -rf dotnet/tests/Bote.Generated.Tests/obj
+    BOTE_MAVEN_REPO={{ justfile_directory() }}/build/maven-repo dotnet test dotnet/Bote.slnx
+
 # Format all .smithy files
 fmt:
     treefmt .
@@ -38,19 +49,32 @@ verify-golden: build
     diff -ru examples/kafka/expected examples/kafka/build/smithyprojections/kafka/source/asyncapi
     diff -ru examples/redis/expected examples/redis/build/smithyprojections/redis/source/asyncapi
 
-# Everything CI and the release workflow run before publishing
-ci: check-format build verify-golden
+# Build, test, and verify the golden files; `devenv test` runs this with a Redis
+verify: build verify-golden dotnet-test
 
-# Publish bote + smithy-asyncapi to the local Maven repo (~/.m2) for local consumers
+# Everything CI runs
+ci: check-format verify
+
+# Publish bote, smithy-asyncapi and smithy-csharp-codegen to the local Maven repo (~/.m2) for local consumers
 publish-local:
     gradle publishToMavenLocal
 
-# Publish bote + smithy-asyncapi to Maven Central via the Sonatype Central Portal.
-# Used by the release workflow; expects MAVEN_CENTRAL_USERNAME / MAVEN_CENTRAL_PASSWORD
-# and ORG_GRADLE_PROJECT_signingInMemoryKey / ORG_GRADLE_PROJECT_signingInMemoryKeyPassword
-# to be set in the environment.
-publish VERSION:
-    gradle -Pversion={{ VERSION }} :publishAndReleaseToMavenCentral :codegen:smithy-asyncapi:publishAndReleaseToMavenCentral
+# Pack the C# runtime packages to dotnet/artifacts/packages
+pack VERSION="0.0.0-SNAPSHOT":
+    for project in Bote Bote.Kafka Bote.Redis; do dotnet pack dotnet/src/$project -c Release -p:Version={{ VERSION }}; done
+
+# Publish the Java artifacts to Maven Central via the Sonatype Central Portal. Used by the release
+# workflow; expects MAVEN_CENTRAL_USERNAME / MAVEN_CENTRAL_PASSWORD and
+# ORG_GRADLE_PROJECT_signingInMemoryKey / ORG_GRADLE_PROJECT_signingInMemoryKeyPassword to be set
+# in the environment.
+publish-maven VERSION:
+    gradle -Pversion={{ VERSION }} :publishAndReleaseToMavenCentral :codegen:smithy-asyncapi:publishAndReleaseToMavenCentral :codegen:smithy-csharp:publishAndReleaseToMavenCentral
+
+# Push the packed C# runtime packages to NuGet. Used by the release workflow; expects NUGET_API_KEY
+# to be set in the environment. Already published packages are skipped, so a failed run can be
+# repeated.
+publish-nuget VERSION:
+    dotnet nuget push "dotnet/artifacts/packages/*.{{ VERSION }}.nupkg" --api-key "$NUGET_API_KEY" --source https://api.nuget.org/v3/index.json --skip-duplicate
 
 # Clean build outputs
 clean:

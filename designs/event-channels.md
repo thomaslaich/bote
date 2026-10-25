@@ -268,14 +268,18 @@ consumer.
 
 ### C#
 
-The C# generator is a `CSharpIntegration` for NSmithy. It registers the bote
-protocols through `protocols()` and generates the messaging surface through
-`serviceGenerator()`, and adds the channels through `additionalShapes()`.
+The C# generator is a `CSharpIntegration` for NSmithy. It adds the channels
+through `additionalShapes()` and generates the messaging surface in place of
+NSmithy's HTTP client and server through `serviceGenerator()`.
 
-- Owner: one handler interface per service with a method per command
-  operation, and one publisher per channel with a method per event.
-- Client: a command sender, and one handler interface per channel with a
-  method per event, registered as a hosted consumer.
+- Owner: one handler interface per command operation, and one publisher per
+  channel with a method per event.
+- Client: a command client with a method per command operation, and one
+  handler interface per channel with a method per event, registered as a
+  hosted consumer. Events the contract does not know go to
+  `HandleUnknownAsync`, which skips them by default.
+- Each broker's sender is registered by its own type, so one service can use
+  several brokers.
 
 Consumers configure the generator explicitly in `smithy-build.json`:
 

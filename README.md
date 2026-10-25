@@ -145,6 +145,48 @@ The plugin writes one `<ServiceName>.asyncapi.json` file per bote service.
 channels are `send` operations. `"client"` reverses both. Redis Streams request/reply operations produce an AsyncAPI reply with
 a dynamic `$message.header#/reply_to` address and correlation metadata.
 
+## C#
+
+The `smithy-csharp-codegen` artifact is an integration for
+[NSmithy](https://github.com/thomaslaich/smithy-dotnet) 0.14.0. In an NSmithy
+project, add it to the project's `smithy-build.json`:
+
+```json
+{
+    "version": "1.0",
+    "sources": ["model"],
+    "maven": {
+        "dependencies": ["io.github.thomaslaich.bote:smithy-csharp-codegen:<version>"]
+    }
+}
+```
+
+For a bote service, NSmithy then generates the channels' event types and this
+messaging surface in place of an HTTP client and server:
+
+| Side | Generated | Registration |
+| --- | --- | --- |
+| Owner (`generateServer`) | `I<Operation>Handler` per command, `<Channel>Publisher` per channel | `Add<Service>CommandConsumer`, `Add<Channel>Publisher` |
+| Client (`generateClient`) | `<Service>Client`, `I<Channel>Handler` per channel | `Add<Service>Client`, `Add<Channel>Consumer` |
+
+A channel handler has one method per event, plus `HandleUnknownAsync` for
+events the contract does not know yet, which skips them by default. The
+registration methods need `generateDependencyInjection: true`.
+
+The generated code runs on the `Bote.Kafka` or `Bote.Redis`
+NuGet package:
+
+```csharp
+builder.Services
+    .AddKafkaMessaging(new KafkaMessagingOptions { Producer = producer, Consumer = consumer })
+    .AddOrderServiceCommandConsumer()
+    .AddOrderEventsPublisher()
+    .AddScoped<ISubmitOrderHandler, SubmitOrderHandler>();
+```
+
+C# generation supports `@kafkaJson`, `@redisStreamsJson`, and
+`@redisPubSubJson`, with one command operation per address.
+
 ## Development
 
 The recommended environment uses [Nix](https://nixos.org/) and
@@ -157,18 +199,21 @@ just build           # validate models, generate examples, and run tests
 just test            # run tests
 just fmt             # format Java, Nix, Markdown, and Smithy
 just verify-golden   # compare generated AsyncAPI with checked-in examples
+just dotnet-test     # build and test the C# runtime and generated code
 just ci              # run the complete local CI pipeline
 ```
 
-The build and published artifacts require Java 21. The root Gradle project
-builds the `bote` trait and validator JAR; the
-`codegen/smithy-asyncapi` subproject builds the generator.
+The build and published artifacts require Java 21 and .NET 10. The root Gradle
+project builds the `bote` trait and validator JAR; `codegen/smithy-asyncapi`
+and `codegen/smithy-csharp` build the generators, and `dotnet/` holds the C#
+runtime and the tests for the code the C# generator emits.
 
-Planned Maven Central coordinates:
+Maven Central coordinates:
 
 ```text
 io.github.thomaslaich.bote:bote:<version>
 io.github.thomaslaich.bote:smithy-asyncapi:<version>
+io.github.thomaslaich.bote:smithy-csharp-codegen:<version>
 ```
 
 ## Related projects
@@ -179,5 +224,5 @@ io.github.thomaslaich.bote:smithy-asyncapi:<version>
   the Protobuf protocol and an inspiration for bote's trait-library design.
 - **[FastStream](https://faststream.ag2.ai/):** an implementation reference for
   Redis Streams request/reply transport metadata.
-- **[NSmithy](https://github.com/thomaslaich/smithy-dotnet):** the planned first
-  consumer of bote protocols.
+- **[NSmithy](https://github.com/thomaslaich/smithy-dotnet):** the C# generator
+  bote's C# integration extends.

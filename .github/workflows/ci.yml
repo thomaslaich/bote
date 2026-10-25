@@ -19,5 +19,7 @@ jobs:
           name: devenv
       - name: Install devenv
         run: nix profile add nixpkgs#devenv
-      - name: Check formatting, build, validate models, run tests, verify golden files
-        run: devenv shell -- just ci
+      - name: Check formatting
+        run: devenv shell -- just check-format
+      - name: Build, validate models, run tests, verify golden files
+        run: devenv test

@@ -18,3 +18,7 @@ build/
 
 # Eclipse / VS Code Java language server output
 bin/
+
+# .NET
+obj/
+dotnet/artifacts/
