@@ -28,6 +28,8 @@ and bote aims to follow [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ### Added
 
+- `@redisStreamsCbor` and `@redisPubSubCbor` protocols, which encode Redis
+  values with the CBOR serialization `rpcv2Cbor` defines.
 - `BoteIndex`, a knowledge index that resolves a model's bote services,
   address traits, and channels for generators.
 
