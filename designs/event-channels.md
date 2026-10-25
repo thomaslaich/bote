@@ -127,7 +127,9 @@ structure kafkaTopic {
 ```
 
 Request/reply uses `reply_to` and `correlation_id` transport metadata, a
-temporary Pub/Sub reply channel, and at-most-once reply delivery.
+temporary Pub/Sub reply channel, and at-most-once reply delivery. The reply is
+a `correlation_id` and `data` pair in the protocol's encoding: a JSON object
+or a CBOR map.
 
 Redis Pub/Sub delivers every message to every subscriber and keeps none. A
 command needs one handler and durable delivery, so commands use Redis Streams,

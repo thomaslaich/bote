@@ -42,6 +42,9 @@ abstract class MessagingGenerator {
   /** The runtime namespace of the broker, such as {@code Bote.Kafka}. */
   abstract String runtimeNamespace();
 
+  /** The NSmithy codec namespace the payloads are encoded with. */
+  abstract String codecNamespace();
+
   /** Writes the codec fields and the encode and decode methods both sides use. */
   abstract void writeCodecs(CSharpWriter writer);
 
@@ -93,7 +96,7 @@ abstract class MessagingGenerator {
 
   private void writeShared(CSharpWriter writer) {
     writer.addImport("NSmithy.Core.Serde");
-    writer.addImport("NSmithy.Codecs.Json");
+    writer.addImport(codecNamespace());
     writer.write("internal static partial class $LMessaging", service);
     writer.openBlock("{");
     writeCodecs(writer);

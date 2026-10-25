@@ -51,6 +51,11 @@ final class KafkaGenerator extends MessagingGenerator {
   }
 
   @Override
+  String codecNamespace() {
+    return "NSmithy.Codecs.Json";
+  }
+
+  @Override
   String consumerRegistration(List<String> inbounds) {
     return "services.AddKafkaMessageConsumer(" + String.join(", ", inbounds) + ")";
   }

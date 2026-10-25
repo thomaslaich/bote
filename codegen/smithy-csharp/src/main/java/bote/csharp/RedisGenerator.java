@@ -13,9 +13,9 @@ import java.util.Set;
 import software.amazon.smithy.model.shapes.Shape;
 
 /**
- * Generates the C# messaging surface of a {@code @redisStreamsJson} or {@code @redisPubSubJson}
- * service. Values are JSON; a channel's events are serialized as its union, whose JSON form is the
- * single-key envelope.
+ * Generates the C# messaging surface of a Redis Streams or Redis Pub/Sub service, JSON or CBOR. A
+ * channel's events are serialized as its union, whose JSON and CBOR forms are the single-key
+ * envelope.
  */
 final class RedisGenerator extends MessagingGenerator {
 
@@ -24,13 +24,36 @@ final class RedisGenerator extends MessagingGenerator {
     PUB_SUB
   }
 
-  private static final String CONTENT_TYPE = "\"application/json\"";
+  /** The value encoding, after Smithy's own JSON and CBOR mappings. */
+  enum Encoding {
+    JSON("NSmithy.Codecs.Json", "JsonCodecFactory", "application/json"),
+    CBOR("NSmithy.Codecs.Cbor", "CborCodecFactory", "application/cbor");
+
+    private final String codecNamespace;
+    private final String codecFactory;
+    private final String contentType;
+
+    Encoding(String codecNamespace, String codecFactory, String contentType) {
+      this.codecNamespace = codecNamespace;
+      this.codecFactory = codecFactory;
+      this.contentType = contentType;
+    }
+  }
 
   private final Kind kind;
+  private final Encoding encoding;
+  private final String contentType;
 
-  RedisGenerator(GenerationContext context, Contract contract, Kind kind) {
+  RedisGenerator(GenerationContext context, Contract contract, Kind kind, Encoding encoding) {
     super(context, contract);
     this.kind = kind;
+    this.encoding = encoding;
+    this.contentType = literal(encoding.contentType);
+  }
+
+  @Override
+  String codecNamespace() {
+    return encoding.codecNamespace;
   }
 
   @Override
@@ -68,9 +91,10 @@ final class RedisGenerator extends MessagingGenerator {
     contract.channels().forEach(channel -> payloads.add(channel.union()));
     for (Shape payload : payloads) {
       writer.write(
-          "private static readonly ICodec<$L> $L = JsonCodecFactory.Default.FromSchema($L.Schema);",
+          "private static readonly ICodec<$L> $L = $L.Default.FromSchema($L.Schema);",
           typeName(payload),
           codec(payload),
+          encoding.codecFactory,
           schema(writer, payload));
     }
 
@@ -93,7 +117,7 @@ final class RedisGenerator extends MessagingGenerator {
           typeName(command.input()),
           codec(command.input()),
           literal(command.type()),
-          CONTENT_TYPE);
+          contentType);
       command
           .output()
           .ifPresent(output -> writeCodecMethods(writer, command.name() + "Reply", output));
@@ -112,7 +136,7 @@ final class RedisGenerator extends MessagingGenerator {
             codec(channel.union()),
             union,
             CSharpNaming.variantFactoryName(event.member()),
-            CONTENT_TYPE);
+            contentType);
       }
       writer.write(
           "internal static $L Decode$L(MessagePayload payload) => $L.Deserialize(payload.Value);",
@@ -133,7 +157,7 @@ final class RedisGenerator extends MessagingGenerator {
         name,
         typeName(payload),
         codec(payload),
-        CONTENT_TYPE);
+        contentType);
   }
 
   private String transport() {

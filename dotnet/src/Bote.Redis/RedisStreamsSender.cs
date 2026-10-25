@@ -69,7 +69,7 @@ public sealed class RedisStreamsSender : IMessageSender, IMessageRequestSender
                 {
                     try
                     {
-                        var reply = RedisReplyEnvelope.Decode(bytes);
+                        var reply = RedisReplyEnvelope.Decode(bytes, payload.ContentType);
                         if (reply.CorrelationId == correlationId)
                             completion.TrySetResult(reply.Payload);
                     }
@@ -96,7 +96,9 @@ public sealed class RedisStreamsSender : IMessageSender, IMessageRequestSender
                 .WaitAsync(deadline.Token)
                 .ConfigureAwait(false);
             var reply = await completion.Task.WaitAsync(deadline.Token).ConfigureAwait(false);
-            return outbound.DecodeReply(new MessagePayload(reply));
+            return outbound.DecodeReply(
+                new MessagePayload(reply, ContentType: payload.ContentType)
+            );
         }
         catch (OperationCanceledException exception)
             when (!cancellationToken.IsCancellationRequested && deadline.IsCancellationRequested)

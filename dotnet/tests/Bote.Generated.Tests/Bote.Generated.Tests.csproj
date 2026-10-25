@@ -16,6 +16,7 @@
     <PackageReference Include="NSmithy.SmithyCli" PrivateAssets="all" />
     <PackageReference Include="NSmithy.Core" />
     <PackageReference Include="NSmithy.Codecs.Json" />
+    <PackageReference Include="NSmithy.Codecs.Cbor" />
     <Using Include="Xunit" />
     <ProjectReference Include="../../src/Bote.Kafka/Bote.Kafka.csproj" />
     <ProjectReference Include="../../src/Bote.Redis/Bote.Redis.csproj" />

@@ -49,9 +49,13 @@ public final class BoteCSharpIntegration implements CSharpIntegration {
                 infrastructure::run);
       }
     } else if (protocol.equals(BoteIndex.REDIS_STREAMS_JSON)) {
-      new RedisGenerator(context, contract, RedisGenerator.Kind.STREAMS).run();
+      redis(context, contract, RedisGenerator.Kind.STREAMS, RedisGenerator.Encoding.JSON);
+    } else if (protocol.equals(BoteIndex.REDIS_STREAMS_CBOR)) {
+      redis(context, contract, RedisGenerator.Kind.STREAMS, RedisGenerator.Encoding.CBOR);
     } else if (protocol.equals(BoteIndex.REDIS_PUBSUB_JSON)) {
-      new RedisGenerator(context, contract, RedisGenerator.Kind.PUB_SUB).run();
+      redis(context, contract, RedisGenerator.Kind.PUB_SUB, RedisGenerator.Encoding.JSON);
+    } else if (protocol.equals(BoteIndex.REDIS_PUBSUB_CBOR)) {
+      redis(context, contract, RedisGenerator.Kind.PUB_SUB, RedisGenerator.Encoding.CBOR);
     } else {
       throw new CodegenException(
           "bote C# code generation does not support @"
@@ -60,5 +64,13 @@ public final class BoteCSharpIntegration implements CSharpIntegration {
               + service.getId()
               + ".");
     }
+  }
+
+  private static void redis(
+      GenerationContext context,
+      Contract contract,
+      RedisGenerator.Kind kind,
+      RedisGenerator.Encoding encoding) {
+    new RedisGenerator(context, contract, kind, encoding).run();
   }
 }
