@@ -32,11 +32,14 @@ jobs:
       - name: Install devenv
         run: nix profile add nixpkgs#devenv
       - name: Check formatting, build, validate models, run tests, verify golden files
-        run: devenv shell -- just ci
+        env:
+          BOTE_TEST_REDIS: localhost:6399
+        run: devenv shell -- bash -c 'redis-server --port 6399 --save "" --daemonize yes && just ci'
       - name: Publish to Maven Central
         env:
           ORG_GRADLE_PROJECT_mavenCentralUsername: ${{ secrets.MAVEN_CENTRAL_USERNAME }}
           ORG_GRADLE_PROJECT_mavenCentralPassword: ${{ secrets.MAVEN_CENTRAL_PASSWORD }}
           ORG_GRADLE_PROJECT_signingInMemoryKey: ${{ secrets.MAVEN_GPG_PRIVATE_KEY }}
           ORG_GRADLE_PROJECT_signingInMemoryKeyPassword: ${{ secrets.MAVEN_GPG_PASSPHRASE }}
+          NUGET_API_KEY: ${{ secrets.NUGET_API_KEY }}
         run: devenv shell -- just publish "${{ steps.version.outputs.version }}"

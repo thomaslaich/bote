@@ -87,3 +87,18 @@ mavenPublishing {
         }
     }
 }
+
+// A Maven repository inside the build directory that the .NET tests and examples resolve the
+// trait library and the C# generator from (`gradle publishAllPublicationsToStagingRepository`).
+allprojects {
+    plugins.withId("maven-publish") {
+        extensions.configure<PublishingExtension> {
+            repositories {
+                maven {
+                    name = "staging"
+                    url = uri(rootProject.layout.buildDirectory.dir("maven-repo"))
+                }
+            }
+        }
+    }
+}

@@ -20,4 +20,6 @@ jobs:
       - name: Install devenv
         run: nix profile add nixpkgs#devenv
       - name: Check formatting, build, validate models, run tests, verify golden files
-        run: devenv shell -- just ci
+        env:
+          BOTE_TEST_REDIS: localhost:6399
+        run: devenv shell -- bash -c 'redis-server --port 6399 --save "" --daemonize yes && just ci'

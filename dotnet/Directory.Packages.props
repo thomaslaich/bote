@@ -1,0 +1,18 @@
+<Project>
+  <PropertyGroup>
+    <NSmithyVersion>0.14.0</NSmithyVersion>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageVersion Include="Confluent.Kafka" Version="2.6.0" />
+    <PackageVersion Include="StackExchange.Redis" Version="2.8.31" />
+    <PackageVersion Include="Microsoft.Extensions.Hosting" Version="10.0.0" />
+    <PackageVersion Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="10.0.0" />
+    <PackageVersion Include="NSmithy.Core" Version="$(NSmithyVersion)" />
+    <PackageVersion Include="NSmithy.Codecs.Json" Version="$(NSmithyVersion)" />
+    <PackageVersion Include="NSmithy.MSBuild" Version="$(NSmithyVersion)" />
+    <PackageVersion Include="NSmithy.SmithyCli" Version="1.73.0" />
+    <PackageVersion Include="Microsoft.NET.Test.Sdk" Version="18.11.0" />
+    <PackageVersion Include="xunit" Version="2.9.3" />
+    <PackageVersion Include="xunit.runner.visualstudio" Version="4.0.1" />
+  </ItemGroup>
+</Project>

@@ -1,0 +1,11 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/Bote.Messaging/Bote.Messaging.csproj" />
+    <Project Path="src/Bote.Messaging.Kafka/Bote.Messaging.Kafka.csproj" />
+    <Project Path="src/Bote.Messaging.Redis/Bote.Messaging.Redis.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/Bote.Messaging.Tests/Bote.Messaging.Tests.csproj" />
+    <Project Path="tests/Bote.Messaging.Generated.Tests/Bote.Messaging.Generated.Tests.csproj" />
+  </Folder>
+</Solution>

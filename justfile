@@ -10,6 +10,17 @@ build:
 test:
     gradle test
 
+# Stage the trait library and the C# generator in build/maven-repo, where the .NET tests resolve them
+stage:
+    gradle publishAllPublicationsToStagingRepository
+
+# Build and test the C# runtime and the code the C# generator emits. The Redis integration tests run
+# when BOTE_TEST_REDIS points at a disposable Redis (e.g. `redis-server --port 6399 --daemonize yes`).
+dotnet-test: stage
+    # NSmithy caches resolved plugins by coordinate; drop it so the freshly staged snapshot is used.
+    rm -rf dotnet/tests/Bote.Messaging.Generated.Tests/obj
+    BOTE_MAVEN_REPO={{ justfile_directory() }}/build/maven-repo dotnet test dotnet/Bote.slnx
+
 # Format all .smithy files
 fmt:
     treefmt .
@@ -39,18 +50,23 @@ verify-golden: build
     diff -ru examples/redis/expected examples/redis/build/smithyprojections/redis/source/asyncapi
 
 # Everything CI and the release workflow run before publishing
-ci: check-format build verify-golden
+ci: check-format build verify-golden dotnet-test
 
-# Publish bote + smithy-asyncapi to the local Maven repo (~/.m2) for local consumers
+# Publish bote, smithy-asyncapi and smithy-csharp-codegen to the local Maven repo (~/.m2) for local consumers
 publish-local:
     gradle publishToMavenLocal
 
-# Publish bote + smithy-asyncapi to Maven Central via the Sonatype Central Portal.
-# Used by the release workflow; expects MAVEN_CENTRAL_USERNAME / MAVEN_CENTRAL_PASSWORD
-# and ORG_GRADLE_PROJECT_signingInMemoryKey / ORG_GRADLE_PROJECT_signingInMemoryKeyPassword
-# to be set in the environment.
-publish VERSION:
-    gradle -Pversion={{ VERSION }} :publishAndReleaseToMavenCentral :codegen:smithy-asyncapi:publishAndReleaseToMavenCentral
+# Pack the C# runtime packages to dotnet/artifacts/packages
+pack VERSION="0.0.0-SNAPSHOT":
+    for project in Bote.Messaging Bote.Messaging.Kafka Bote.Messaging.Redis; do dotnet pack dotnet/src/$project -c Release -p:Version={{ VERSION }}; done
+
+# Publish the Java artifacts to Maven Central via the Sonatype Central Portal and the C# runtime to
+# NuGet. Used by the release workflow; expects MAVEN_CENTRAL_USERNAME / MAVEN_CENTRAL_PASSWORD,
+# ORG_GRADLE_PROJECT_signingInMemoryKey / ORG_GRADLE_PROJECT_signingInMemoryKeyPassword and
+# NUGET_API_KEY to be set in the environment.
+publish VERSION: (pack VERSION)
+    gradle -Pversion={{ VERSION }} :publishAndReleaseToMavenCentral :codegen:smithy-asyncapi:publishAndReleaseToMavenCentral :codegen:smithy-csharp:publishAndReleaseToMavenCentral
+    dotnet nuget push "dotnet/artifacts/packages/*.{{ VERSION }}.nupkg" --api-key "$NUGET_API_KEY" --source https://api.nuget.org/v3/index.json
 
 # Clean build outputs
 clean:
