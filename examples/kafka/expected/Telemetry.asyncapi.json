@@ -50,7 +50,7 @@
             ],
             "summary": "Record a sensor reading."
         },
-        "ConsumeAlerts": {
+        "Alerts": {
             "action": "send",
             "channel": {
                 "$ref": "#/channels/telemetry.alerts"
@@ -60,7 +60,7 @@
                     "$ref": "#/channels/telemetry.alerts/messages/ThresholdExceeded"
                 }
             ],
-            "summary": "Consume threshold alerts derived from the readings."
+            "summary": "Threshold alerts derived from the readings."
         }
     },
     "components": {

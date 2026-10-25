@@ -12,70 +12,82 @@ protocol and binding traits, build-time validators, and a reference AsyncAPI
 
 ## Protocols
 
-| Service trait | Binding traits | Encoding |
+| Service trait | Address trait | Encoding |
 | --- | --- | --- |
-| `@kafkaJson` | `@kafkaProduce`, `@kafkaConsume` | JSON |
-| `@kafkaAvro` | `@kafkaProduce`, `@kafkaConsume` | Avro |
-| `@kafkaProtobuf` | `@kafkaProduce`, `@kafkaConsume` | Protobuf |
-| `@redisStreamsJson` | `@redisStreamAdd`, `@redisStreamRead` | JSON |
-| `@redisPubSubJson` | `@redisPublish`, `@redisSubscribe` | JSON |
+| `@kafkaJson` | `@kafkaTopic` | JSON |
+| `@kafkaAvro` | `@kafkaTopic` | Avro |
+| `@kafkaProtobuf` | `@kafkaTopic` | Protobuf |
+| `@redisStreamsJson` | `@redisStream` | JSON |
+| `@redisPubSubJson` | `@redisChannel` | JSON |
 
-Payload roles are broker-independent: `@command` is accepted by the contract
-owner, `@event` is emitted by it, and `@reply` is returned by a Redis Streams
-command.
+A bote service owns its contract. It receives **commands**, which are its
+operations, and publishes **events** to **channels**, which are unions it lists
+in `@channels`. The address trait binds both to a broker address. Where it sits
+sets the direction: the owner receives commands at an operation's address and
+publishes events to a channel's address. Traits name addresses, never actions,
+so one contract reads the same from either side.
+
+| Role | Marker | Position |
+| --- | --- | --- |
+| Command | `@input` | Input of an operation |
+| Reply | `@output` | Output of a Redis Streams operation |
+| Event | `@event` | Member of a channel union |
 
 ## Quick start
 
-This service accepts both a one-way command and a request/reply operation:
+This service accepts a one-way command and a request/reply command, and
+publishes presence changes:
 
 ```smithy
 $version: "2"
 
 namespace example.presence
 
-use bote#command
-use bote#redisStreamAdd
+use bote#channels
+use bote#event
+use bote#redisStream
 use bote#redisStreamsJson
-use bote#reply
 
 @redisStreamsJson
+@channels([PresenceEvents])
 service PresenceService {
     operations: [SetPresence, GetPresence]
 }
 
-@redisStreamAdd(stream: "presence.commands")
+@redisStream(key: "presence.commands")
 operation SetPresence {
-    input: SetPresenceCommand
+    input := {
+        userId: String
+        status: String
+    }
 }
 
-@redisStreamAdd(stream: "presence.requests")
+@redisStream(key: "presence.requests")
 operation GetPresence {
-    input: GetPresenceRequest
-    output: GetPresenceReply
+    input := {
+        userId: String
+    }
+    output := {
+        userId: String
+        status: String
+    }
 }
 
-@command
-structure SetPresenceCommand {
-    userId: String
-    status: String
+@redisStream(key: "presence.events")
+union PresenceEvents {
+    changed: PresenceChanged
 }
 
-@command
-structure GetPresenceRequest {
-    userId: String
-}
-
-@reply
-structure GetPresenceReply {
+@event
+structure PresenceChanged {
     userId: String
     status: String
 }
 ```
 
-With no output, a Redis Streams add operation is fire-and-forget. A `@reply`
-output makes the same binding request/reply; no separate request trait is
-needed. Redis `@redisPublish` operations never have outputs because every
-active subscriber receives the command.
+With no output, a Redis Streams operation is fire-and-forget. An output makes
+the same binding request/reply. Kafka and Redis Pub/Sub operations never have
+outputs.
 
 For request/reply, the requester generates `reply_to` and `correlation_id`
 transport metadata, subscribes to the temporary Pub/Sub channel before sending
@@ -90,14 +102,18 @@ is durable.
 
 ## Contract rules
 
-- Produce-side inputs are `@command` structures. Consume-side outputs contain
-  a `@streaming` union of `@event` structures.
-- Kafka and Redis Pub/Sub produce operations have no output. Redis Streams add
-  operations may omit output or return one `@reply` structure.
-- A broker address has one owning service. Operations sharing it must agree on
-  channel-level values such as Kafka compaction and Redis `maxLen`.
-- Kafka JSON events use an envelope discriminator by default, optionally a
-  `bote-type` header or no discriminator for a single-event channel.
+- Every operation of a bote service carries the protocol's address trait and
+  takes an `@input` command. Only Redis Streams operations may return an
+  `@output` reply.
+- Every channel carries the protocol's address trait and is listed by exactly
+  one service. Its members target `@event` structures, which are never
+  operation inputs or outputs.
+- An address has one owning service and one use: one channel, or the address
+  of command operations. Operations sharing an address agree on address-level
+  values such as Kafka compaction and Redis `maxLen`.
+- Channel union member names are the event discriminators. Kafka JSON events
+  use an envelope by default, optionally a `bote-type` header or no
+  discriminator for a single-event channel.
 - `@kafkaHeader` members are excluded from the value; `@kafkaKey` remains in
   the value and is also used as the record key.
 - Kafka Protobuf payload members require explicit `alloy.proto#protoIndex`
@@ -123,8 +139,8 @@ plugin in `smithy-build.json`:
 ```
 
 The plugin writes one `<ServiceName>.asyncapi.json` file per bote service.
-`"perspective": "owner"` is the default; `"client"` reverses the operation
-actions. Redis Streams request/reply operations produce an AsyncAPI reply with
+`"perspective": "owner"` is the default: commands are `receive` operations and
+channels are `send` operations. `"client"` reverses both. Redis Streams request/reply operations produce an AsyncAPI reply with
 a dynamic `$message.header#/reply_to` address and correlation metadata.
 
 ## Development

@@ -13,83 +13,79 @@ import software.amazon.smithy.model.shapes.ShapeId;
 class AsyncApiConverterTest {
 
   private static final String MODEL =
-"""
+      """
       $version: "2"
       namespace test
 
-use bote#kafkaJson
-use bote#kafkaProduce
-use bote#kafkaConsume
-use bote.infra#kafkaTopicConfig
-use bote#kafkaKey
-use bote#kafkaHeader
-use bote#redisPubSubJson
-      use bote#redisPublish
-      use bote#command
-use bote#event
+      use bote#channels
+      use bote#event
+      use bote#kafkaHeader
+      use bote#kafkaJson
+      use bote#kafkaKey
+      use bote#kafkaTopic
+      use bote#redisChannel
+      use bote#redisPubSubJson
+      use bote.infra#kafkaTopicConfig
 
-      /// Produces order commands and consumes order events.
-@title("Order Events API")
-@kafkaJson
+      /// Receives order commands and publishes order events.
+      @title("Order Events API")
+      @kafkaJson
+      @channels([OrderEvents])
       service OrderService {
           version: "2024-01-01"
-          operations: [PublishOrder, ConsumeOrders, PublishState]
+          operations: [PublishOrder, PublishState]
       }
 
-@redisPubSubJson
+      @redisPubSubJson
       service PresenceService {
           version: "2024-01-01"
           operations: [SetPresence]
       }
 
-      @kafkaProduce(topic: "orders")
-      @kafkaTopicConfig(partitions: 12, replicationFactor: 3, minInsyncReplicas: 2)
+      @kafkaTopic(name: "orders.commands")
       operation PublishOrder { input: SubmitOrder }
 
-      @kafkaConsume(topic: "orders")
-      operation ConsumeOrders {
-          output := { events: OrderEventStream }
-      }
-
-@kafkaProduce(topic: "order-state", compacted: true)
+      @kafkaTopic(name: "order-state", compacted: true)
       operation PublishState { input: SetOrderState }
 
-@redisPublish(channel: "presence")
+      @redisChannel(name: "presence")
       operation SetPresence { input: SetPresenceCommand }
 
-@streaming
-      union OrderEventStream { orderEvent: OrderEvent }
+      /// Order lifecycle events.
+      @kafkaTopic(name: "orders")
+      @kafkaTopicConfig(partitions: 12, replicationFactor: 3, minInsyncReplicas: 2)
+      union OrderEvents { orderEvent: OrderEvent }
 
-@command
+      @input
       structure SubmitOrder {
-@kafkaKey
+          @kafkaKey
           orderId: String
-@kafkaHeader(name: "x-trace-id")
+          @kafkaHeader(name: "x-trace-id")
           traceId: String
           totalCents: Integer
       }
 
-@event
+      @event
       structure OrderEvent {
-@kafkaKey
+          @kafkaKey
           orderId: String
-@kafkaHeader(name: "x-trace-id")
+          @kafkaHeader(name: "x-trace-id")
           traceId: String
           totalCents: Integer
       }
 
-@command
+      @input
       structure SetOrderState {
-@kafkaKey
+          @kafkaKey
           orderId: String
       }
 
-@command
+      @input
       structure SetPresenceCommand {
           userId: String
           status: String
       }
-""";
+      """;
 
   private Model assembleModel(String source) {
     return Model.assembler()
@@ -135,7 +131,7 @@ use bote#event
     assertEquals("2024-01-01", info.expectStringMember("version").getValue());
     // info.description comes from the service's @documentation.
     assertEquals(
-        "Produces order commands and consumes order events.",
+        "Receives order commands and publishes order events.",
         info.expectStringMember("description").getValue());
   }
 
@@ -202,7 +198,7 @@ use bote#event
         operations.expectObjectMember("PublishOrder").expectStringMember("action").getValue());
     assertEquals(
         "send",
-        operations.expectObjectMember("ConsumeOrders").expectStringMember("action").getValue());
+        operations.expectObjectMember("OrderEvents").expectStringMember("action").getValue());
     // The document records which side it describes.
     assertEquals(
         "owner",
@@ -218,42 +214,30 @@ use bote#event
         operations.expectObjectMember("PublishOrder").expectStringMember("action").getValue());
     assertEquals(
         "receive",
-        operations.expectObjectMember("ConsumeOrders").expectStringMember("action").getValue());
+        operations.expectObjectMember("OrderEvents").expectStringMember("action").getValue());
     assertEquals(
         "client",
         doc.expectObjectMember("info").expectStringMember("x-bote-perspective").getValue());
   }
 
   @Test
-  void produceAndConsumeShareOneChannel() {
+  void channelOperationReferencesItsEventMessages() {
     ObjectNode doc = convert();
-    // A single "orders" channel is produced even though two operations bind to it.
-    ObjectNode channels = doc.expectObjectMember("channels");
-    assertTrue(channels.getMember("orders").isPresent());
-    assertTrue(
-        channels
-            .expectObjectMember("orders")
-            .expectObjectMember("messages")
-            .getMember("SubmitOrder")
-            .isPresent());
-    assertTrue(
-        channels
-            .expectObjectMember("orders")
-            .expectObjectMember("messages")
-            .getMember("OrderEvent")
-            .isPresent());
+    ObjectNode channel = doc.expectObjectMember("channels").expectObjectMember("orders");
+    assertTrue(channel.expectObjectMember("messages").getMember("OrderEvent").isPresent());
+    assertFalse(channel.expectObjectMember("messages").getMember("SubmitOrder").isPresent());
 
-    // The consume operation references the event message on the same channel.
-    String receiveRef =
-        doc.expectObjectMember("operations")
-            .expectObjectMember("ConsumeOrders")
+    ObjectNode operation = doc.expectObjectMember("operations").expectObjectMember("OrderEvents");
+    assertEquals("Order lifecycle events.", operation.expectStringMember("summary").getValue());
+    String ref =
+        operation
             .expectArrayMember("messages")
             .get(0)
             .get()
             .expectObjectNode()
             .expectStringMember("$ref")
             .getValue();
-    assertEquals("#/channels/orders/messages/OrderEvent", receiveRef);
+    assertEquals("#/channels/orders/messages/OrderEvent", ref);
   }
 
   @Test
@@ -287,7 +271,7 @@ use bote#event
   @Test
   void envelopeDiscriminationWrapsEventPayloads() {
     // eventDiscrimination defaults to ENVELOPE: the event payload is the
-    // single-key tagged-union object keyed by the streaming union member name.
+    // single-key tagged-union object keyed by the channel union member name.
     ObjectNode payload =
         convert()
             .expectObjectMember("components")
@@ -313,18 +297,17 @@ use bote#event
         """
         $version: "2"
         namespace test
-        use bote#kafkaJson
-        use bote#kafkaConsume
+        use bote#channels
         use bote#event
+        use bote#kafkaJson
+        use bote#kafkaTopic
 
         @kafkaJson(eventDiscrimination: "HEADER")
-        service Lights { operations: [Consume] }
+        @channels([LightEvents])
+        service Lights {}
 
-        @kafkaConsume(topic: "lights")
-        operation Consume { output := { events: Stream } }
-
-        @streaming
-        union Stream { measured: Measured }
+        @kafkaTopic(name: "lights")
+        union LightEvents { measured: Measured }
 
         @event
         structure Measured { lumens: Integer }
@@ -357,15 +340,14 @@ use bote#event
         $version: "2"
         namespace test
         use alloy.proto#protoIndex
-        use bote#kafkaProtobuf
-        use bote#kafkaConsume
+        use bote#channels
         use bote#event
+        use bote#kafkaProtobuf
+        use bote#kafkaTopic
 
         @kafkaProtobuf
-        service Telemetry { operations: [ConsumeAlerts] }
-
-        @kafkaConsume(topic: "alerts")
-        operation ConsumeAlerts { output := { alerts: Stream } }
+        @channels([Alerts])
+        service Telemetry {}
 
         @event
         structure Alert {
@@ -373,8 +355,8 @@ use bote#event
             sensorId: String
         }
 
-        @streaming
-        union Stream {
+        @kafkaTopic(name: "alerts")
+        union Alerts {
             @protoIndex(1)
             alert: Alert
         }
@@ -397,13 +379,13 @@ use bote#event
   }
 
   @Test
-  void schemasContainMessageClosureButNotStreamingWrapper() {
+  void schemasContainMessageClosureButNotChannelUnion() {
     ObjectNode schemas = convert().expectObjectMember("components").expectObjectMember("schemas");
     assertTrue(schemas.getMember("SubmitOrder").isPresent());
     assertTrue(schemas.getMember("OrderEvent").isPresent());
     assertTrue(schemas.getMember("SetOrderState").isPresent());
-    // The @streaming union wrapper is plumbing, not a message payload.
-    assertFalse(schemas.getMember("OrderEventStream").isPresent());
+    // The channel union groups the events; it is not a message payload.
+    assertFalse(schemas.getMember("OrderEvents").isPresent());
     // Integer renders as JSON Schema integer, not number.
     assertEquals(
         "integer",
@@ -446,21 +428,19 @@ use bote#event
         """
         $version: "2"
         namespace test
+        use bote#redisStream
         use bote#redisStreamsJson
-        use bote#redisStreamAdd
-        use bote#command
-        use bote#reply
 
         @redisStreamsJson
         service LookupService { operations: [Lookup] }
 
-        @redisStreamAdd(stream: "lookups")
+        @redisStream(key: "lookups")
         operation Lookup { input: LookupRequest, output: LookupReply }
 
-        @command
+        @input
         structure LookupRequest { id: String }
 
-        @reply
+        @output
         structure LookupReply { value: String }
         """;
     Model assembled = assembleModel(model);

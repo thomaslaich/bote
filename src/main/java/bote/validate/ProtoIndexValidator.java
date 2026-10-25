@@ -1,5 +1,7 @@
 package bote.validate;
 
+import bote.BoteIndex;
+
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -11,12 +13,11 @@ import software.amazon.smithy.model.shapes.OperationShape;
 import software.amazon.smithy.model.shapes.ServiceShape;
 import software.amazon.smithy.model.shapes.Shape;
 import software.amazon.smithy.model.shapes.ShapeId;
-import software.amazon.smithy.model.traits.StreamingTrait;
 import software.amazon.smithy.model.validation.AbstractValidator;
 import software.amazon.smithy.model.validation.ValidationEvent;
 
 /**
- * Validates that every member of every payload structure and streaming union reachable from a
+ * Validates that every member of every payload structure and channel union reachable from a
  * {@code @kafkaProtobuf} service carries an explicit {@code alloy.proto#protoIndex}. Implicit field
  * numbering breaks the protobuf wire format when members are reordered or removed, which defeats
  * the point of a schema contract.
@@ -27,27 +28,20 @@ import software.amazon.smithy.model.validation.ValidationEvent;
  */
 public final class ProtoIndexValidator extends AbstractValidator {
 
-  private static final ShapeId KAFKA_PROTOBUF = ShapeId.from("bote#kafkaProtobuf");
-  private static final ShapeId KAFKA_PRODUCE = ShapeId.from("bote#kafkaProduce");
-  private static final ShapeId KAFKA_CONSUME = ShapeId.from("bote#kafkaConsume");
   private static final ShapeId PROTO_INDEX = ShapeId.from("alloy.proto#protoIndex");
 
   @Override
   public List<ValidationEvent> validate(Model model) {
+    BoteIndex index = BoteIndex.of(model);
     Set<ShapeId> roots = new LinkedHashSet<>();
     for (ServiceShape service : model.getServiceShapes()) {
-      if (!service.hasTrait(KAFKA_PROTOBUF)) {
+      if (!service.hasTrait(BoteIndex.KAFKA_PROTOBUF)) {
         continue;
       }
       for (ShapeId operationId : service.getAllOperations()) {
-        OperationShape operation = model.expectShape(operationId, OperationShape.class);
-        if (operation.hasTrait(KAFKA_PRODUCE)) {
-          operation.getInput().ifPresent(roots::add);
-        }
-        if (operation.hasTrait(KAFKA_CONSUME)) {
-          collectStreamingUnions(model, operation, roots);
-        }
+        model.expectShape(operationId, OperationShape.class).getInput().ifPresent(roots::add);
       }
+      index.channels(service).forEach(channel -> roots.add(channel.getId()));
     }
 
     List<ValidationEvent> events = new ArrayList<>();
@@ -76,21 +70,5 @@ public final class ProtoIndexValidator extends AbstractValidator {
       }
     }
     return events;
-  }
-
-  private void collectStreamingUnions(Model model, OperationShape operation, Set<ShapeId> roots) {
-    operation
-        .getOutput()
-        .flatMap(id -> model.getShape(id).flatMap(Shape::asStructureShape))
-        .ifPresent(
-            output -> {
-              for (MemberShape member : output.getAllMembers().values()) {
-                model
-                    .getShape(member.getTarget())
-                    .flatMap(Shape::asUnionShape)
-                    .filter(union -> union.hasTrait(StreamingTrait.ID))
-                    .ifPresent(union -> roots.add(union.getId()));
-              }
-            });
   }
 }

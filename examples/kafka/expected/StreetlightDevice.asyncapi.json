@@ -4,10 +4,24 @@
         "title": "Streetlight Device API",
         "version": "1.0.0",
         "x-bote-perspective": "owner",
-        "description": "The streetlight device API: clients consume lighting events and produce dim commands."
+        "description": "The streetlight device API: clients consume lighting events and send dim commands."
     },
     "defaultContentType": "application/avro",
     "channels": {
+        "smartylighting.streetlights.action.dim": {
+            "address": "smartylighting.streetlights.action.dim",
+            "messages": {
+                "DimLightCommand": {
+                    "$ref": "#/components/messages/DimLightCommand"
+                }
+            },
+            "bindings": {
+                "kafka": {
+                    "topic": "smartylighting.streetlights.action.dim",
+                    "bindingVersion": "0.5.0"
+                }
+            }
+        },
         "smartylighting.streetlights.lighting.measured": {
             "address": "smartylighting.streetlights.lighting.measured",
             "messages": {
@@ -26,35 +40,9 @@
                     }
                 }
             }
-        },
-        "smartylighting.streetlights.action.dim": {
-            "address": "smartylighting.streetlights.action.dim",
-            "messages": {
-                "DimLightCommand": {
-                    "$ref": "#/components/messages/DimLightCommand"
-                }
-            },
-            "bindings": {
-                "kafka": {
-                    "topic": "smartylighting.streetlights.action.dim",
-                    "bindingVersion": "0.5.0"
-                }
-            }
         }
     },
     "operations": {
-        "ConsumeLightingEvents": {
-            "action": "send",
-            "channel": {
-                "$ref": "#/channels/smartylighting.streetlights.lighting.measured"
-            },
-            "messages": [
-                {
-                    "$ref": "#/channels/smartylighting.streetlights.lighting.measured/messages/LightMeasured"
-                }
-            ],
-            "summary": "Consume environmental lighting events reported by streetlights."
-        },
         "DimLight": {
             "action": "receive",
             "channel": {
@@ -66,10 +54,39 @@
                 }
             ],
             "summary": "Dim a streetlight."
+        },
+        "LightingEvents": {
+            "action": "send",
+            "channel": {
+                "$ref": "#/channels/smartylighting.streetlights.lighting.measured"
+            },
+            "messages": [
+                {
+                    "$ref": "#/channels/smartylighting.streetlights.lighting.measured/messages/LightMeasured"
+                }
+            ],
+            "summary": "Environmental lighting events reported by streetlights."
         }
     },
     "components": {
         "messages": {
+            "DimLightCommand": {
+                "name": "DimLightCommand",
+                "title": "DimLightCommand",
+                "contentType": "application/avro",
+                "payload": {
+                    "$ref": "#/components/schemas/DimLightCommand"
+                },
+                "summary": "Command a particular streetlight to dim the lights.",
+                "bindings": {
+                    "kafka": {
+                        "key": {
+                            "type": "string"
+                        },
+                        "bindingVersion": "0.5.0"
+                    }
+                }
+            },
             "LightMeasured": {
                 "name": "LightMeasured",
                 "title": "LightMeasured",
@@ -92,23 +109,6 @@
                         "my-app-id": {
                             "type": "string"
                         }
-                    }
-                }
-            },
-            "DimLightCommand": {
-                "name": "DimLightCommand",
-                "title": "DimLightCommand",
-                "contentType": "application/avro",
-                "payload": {
-                    "$ref": "#/components/schemas/DimLightCommand"
-                },
-                "summary": "Command a particular streetlight to dim the lights.",
-                "bindings": {
-                    "kafka": {
-                        "key": {
-                            "type": "string"
-                        },
-                        "bindingVersion": "0.5.0"
                     }
                 }
             }

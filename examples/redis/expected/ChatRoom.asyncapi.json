@@ -8,14 +8,11 @@
     },
     "defaultContentType": "application/json",
     "channels": {
-        "chat:messages": {
-            "address": "chat:messages",
+        "chat:posts": {
+            "address": "chat:posts",
             "messages": {
-                "PostChatMessage": {
-                    "$ref": "#/components/messages/PostChatMessage"
-                },
-                "ChatMessagePosted": {
-                    "$ref": "#/components/messages/ChatMessagePosted"
+                "PostMessageCommand": {
+                    "$ref": "#/components/messages/PostMessageCommand"
                 }
             }
         },
@@ -24,6 +21,14 @@
             "messages": {
                 "GetRoomStatusRequest": {
                     "$ref": "#/components/messages/GetRoomStatusRequest"
+                }
+            }
+        },
+        "chat:messages": {
+            "address": "chat:messages",
+            "messages": {
+                "ChatMessagePosted": {
+                    "$ref": "#/components/messages/ChatMessagePosted"
                 }
             }
         },
@@ -39,14 +44,14 @@
         "PostMessage": {
             "action": "receive",
             "channel": {
-                "$ref": "#/channels/chat:messages"
+                "$ref": "#/channels/chat:posts"
             },
             "messages": [
                 {
-                    "$ref": "#/channels/chat:messages/messages/PostChatMessage"
+                    "$ref": "#/channels/chat:posts/messages/PostMessageCommand"
                 }
             ],
-            "summary": "Post a chat message to the room stream."
+            "summary": "Post a chat message to the room."
         },
         "GetRoomStatus": {
             "action": "receive",
@@ -73,7 +78,7 @@
             },
             "summary": "Get the current status of a room through Redis Streams request/reply."
         },
-        "ReadMessages": {
+        "ChatMessages": {
             "action": "send",
             "channel": {
                 "$ref": "#/channels/chat:messages"
@@ -83,17 +88,17 @@
                     "$ref": "#/channels/chat:messages/messages/ChatMessagePosted"
                 }
             ],
-            "summary": "Read posted chat messages from the room stream."
+            "summary": "Chat messages posted to the room."
         }
     },
     "components": {
         "messages": {
-            "PostChatMessage": {
-                "name": "PostChatMessage",
-                "title": "PostChatMessage",
+            "PostMessageCommand": {
+                "name": "PostMessageCommand",
+                "title": "PostMessageCommand",
                 "contentType": "application/json",
                 "payload": {
-                    "$ref": "#/components/schemas/PostChatMessage"
+                    "$ref": "#/components/schemas/PostMessageCommand"
                 },
                 "summary": "Command to post a chat message to a room."
             },
@@ -166,6 +171,23 @@
             }
         },
         "schemas": {
+            "PostMessageCommand": {
+                "type": "object",
+                "description": "Command to post a chat message to a room.",
+                "properties": {
+                    "roomId": {
+                        "type": "string"
+                    },
+                    "userId": {
+                        "type": "string"
+                    },
+                    "body": {
+                        "type": "string",
+                        "maxLength": 4000,
+                        "minLength": 1
+                    }
+                }
+            },
             "ChatMessagePosted": {
                 "type": "object",
                 "description": "A chat message was posted to a room.",
@@ -184,23 +206,6 @@
                     "sentAt": {
                         "type": "string",
                         "format": "date-time"
-                    }
-                }
-            },
-            "PostChatMessage": {
-                "type": "object",
-                "description": "Command to post a chat message to a room.",
-                "properties": {
-                    "roomId": {
-                        "type": "string"
-                    },
-                    "userId": {
-                        "type": "string"
-                    },
-                    "body": {
-                        "type": "string",
-                        "maxLength": 4000,
-                        "minLength": 1
                     }
                 }
             },

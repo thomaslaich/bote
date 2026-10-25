@@ -61,7 +61,7 @@
             ],
             "summary": "Submit a new order for processing."
         },
-        "ConsumeOrderEvents": {
+        "OrderEvents": {
             "action": "send",
             "channel": {
                 "$ref": "#/channels/orders.events"
@@ -77,7 +77,7 @@
                     "$ref": "#/channels/orders.events/messages/OrderCancelled"
                 }
             ],
-            "summary": "Consume order lifecycle events."
+            "summary": "Order lifecycle events."
         }
     },
     "components": {

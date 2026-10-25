@@ -1,5 +1,8 @@
 package bote.asyncapi;
 
+import bote.BoteIndex;
+import bote.BoteIndex.Address;
+
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -22,8 +25,8 @@ import software.amazon.smithy.model.shapes.Shape;
 import software.amazon.smithy.model.shapes.ShapeId;
 import software.amazon.smithy.model.shapes.ShapeType;
 import software.amazon.smithy.model.shapes.StructureShape;
+import software.amazon.smithy.model.shapes.UnionShape;
 import software.amazon.smithy.model.traits.DocumentationTrait;
-import software.amazon.smithy.model.traits.StreamingTrait;
 import software.amazon.smithy.model.traits.TitleTrait;
 
 /**
@@ -31,22 +34,23 @@ import software.amazon.smithy.model.traits.TitleTrait;
  *
  * <p>AsyncAPI 3 actions describe the application the document is about, so the mapping depends on
  * the chosen {@link Perspective}. With the default OWNER perspective the document describes the
- * contract owner: produce-side operations ({@code @kafkaProduce}, {@code @redisStreamAdd},
- * {@code @redisPublish} — the owner accepts commands) become {@code action: receive}, and
- * consume-side operations ({@code @kafkaConsume}, {@code @redisStreamRead}, {@code @redisSubscribe}
- * — the owner emits events) become {@code action: send}. The CLIENT perspective flips both.
+ * contract owner: it receives commands, so operations become {@code action: receive}, and it
+ * publishes events, so channels become {@code action: send}. The CLIENT perspective flips both.
  *
  * <ul>
  *   <li>bote protocol service(s) -&gt; the AsyncAPI document
- *   <li>the broker operation trait's address (topic / stream / channel) -&gt; a channel
- *   <li>a broker operation trait -&gt; an operation (action per perspective)
+ *   <li>an address (topic / stream / Pub/Sub channel) -&gt; an AsyncAPI channel
+ *   <li>a command operation -&gt; an AsyncAPI operation whose message is the operation input
+ *   <li>a channel union listed in {@code @channels} -&gt; an AsyncAPI operation with one message
+ *       per union member
  *   <li>each message value structure -&gt; a component message + JSON Schema payload
  *   <li>event messages -&gt; payload/headers per the protocol's event discrimination (ENVELOPE
- *       wraps the payload in a single-key object; HEADER adds a "bote-type" header)
+ *       wraps the payload in a single-key object keyed by the union member name; HEADER adds a
+ *       "bote-type" header)
  *   <li>{@code @kafkaKey} -&gt; the Kafka message binding key
  *   <li>{@code @kafkaHeader} -&gt; the message headers schema; header members are stripped from
  *       payload schemas because they travel only as Kafka headers
- *   <li>a Redis Streams add operation with a {@code @reply} output -&gt; an operation reply on a
+ *   <li>a Redis Streams operation with an output -&gt; an operation reply on a
  *       dynamic Pub/Sub channel, addressed by {@code reply_to} and matched by {@code
  *       correlation_id}
  *   <li>{@code @bote.infra#kafkaTopicConfig} -&gt; Kafka channel binding partitions/replicas/config
@@ -60,36 +64,6 @@ final class AsyncApiConverter {
   private static final String TYPE_HEADER_NAME = "bote-type";
   private static final String REPLY_TO_HEADER_NAME = "reply_to";
   private static final String CORRELATION_ID_HEADER_NAME = "correlation_id";
-
-  private static final ShapeId KAFKA_JSON = ShapeId.from("bote#kafkaJson");
-  private static final ShapeId KAFKA_AVRO = ShapeId.from("bote#kafkaAvro");
-  private static final ShapeId KAFKA_PROTOBUF = ShapeId.from("bote#kafkaProtobuf");
-  private static final ShapeId KAFKA_TOPIC_CONFIG = ShapeId.from("bote.infra#kafkaTopicConfig");
-  private static final ShapeId KAFKA_KEY = ShapeId.from("bote#kafkaKey");
-  private static final ShapeId KAFKA_HEADER = ShapeId.from("bote#kafkaHeader");
-  private static final ShapeId REDIS_STREAMS_JSON = ShapeId.from("bote#redisStreamsJson");
-  private static final ShapeId REDIS_PUBSUB_JSON = ShapeId.from("bote#redisPubSubJson");
-  private static final ShapeId KAFKA_PRODUCE = ShapeId.from("bote#kafkaProduce");
-  private static final ShapeId KAFKA_CONSUME = ShapeId.from("bote#kafkaConsume");
-  private static final ShapeId REDIS_STREAM_ADD = ShapeId.from("bote#redisStreamAdd");
-  private static final ShapeId REDIS_STREAM_READ = ShapeId.from("bote#redisStreamRead");
-  private static final ShapeId REDIS_PUBLISH = ShapeId.from("bote#redisPublish");
-  private static final ShapeId REDIS_SUBSCRIBE = ShapeId.from("bote#redisSubscribe");
-
-  private static final List<ShapeId> PRODUCE_TRAITS =
-      List.of(KAFKA_PRODUCE, REDIS_STREAM_ADD, REDIS_PUBLISH);
-  private static final List<ShapeId> CONSUME_TRAITS =
-      List.of(KAFKA_CONSUME, REDIS_STREAM_READ, REDIS_SUBSCRIBE);
-
-  /** Broker operation trait -> the member of the trait carrying the channel address. */
-  private static final Map<ShapeId, String> ADDRESS_MEMBERS =
-      Map.of(
-          KAFKA_PRODUCE, "topic",
-          KAFKA_CONSUME, "topic",
-          REDIS_STREAM_ADD, "stream",
-          REDIS_STREAM_READ, "stream",
-          REDIS_PUBLISH, "channel",
-          REDIS_SUBSCRIBE, "channel");
 
   /** Whose viewpoint the generated document takes. */
   enum Perspective {
@@ -145,25 +119,19 @@ final class AsyncApiConverter {
 
   /** Returns true if the service carries any bote messaging protocol trait. */
   static boolean isBoteService(ServiceShape service) {
-    return isKafkaService(service) || isRedisService(service);
+    return BoteIndex.protocol(service).isPresent();
   }
 
   private static boolean isRedisService(ServiceShape service) {
-    return service.hasTrait(REDIS_STREAMS_JSON) || service.hasTrait(REDIS_PUBSUB_JSON);
-  }
-
-  /** Returns true if the service carries a bote Kafka protocol trait. */
-  static boolean isKafkaService(ServiceShape service) {
-    return service.hasTrait(KAFKA_JSON)
-        || service.hasTrait(KAFKA_AVRO)
-        || service.hasTrait(KAFKA_PROTOBUF);
+    return service.hasTrait(BoteIndex.REDIS_STREAMS_JSON)
+        || service.hasTrait(BoteIndex.REDIS_PUBSUB_JSON);
   }
 
   private static String contentTypeFor(ServiceShape service) {
-    if (service.hasTrait(KAFKA_AVRO)) {
+    if (service.hasTrait(BoteIndex.KAFKA_AVRO)) {
       return "application/avro";
     }
-    if (service.hasTrait(KAFKA_PROTOBUF)) {
+    if (service.hasTrait(BoteIndex.KAFKA_PROTOBUF)) {
       return "application/protobuf";
     }
     return "application/json";
@@ -179,12 +147,9 @@ final class AsyncApiConverter {
 
   /** The event discrimination mode of a service's protocol. */
   private static Discrimination discriminationFor(ServiceShape service) {
-    if (service.hasTrait(KAFKA_JSON)) {
-      return service
-          .findTrait(KAFKA_JSON)
-          .map(t -> t.toNode().expectObjectNode())
-          .flatMap(n -> n.getStringMember("eventDiscrimination"))
-          .map(s -> Discrimination.valueOf(s.getValue()))
+    if (service.hasTrait(BoteIndex.KAFKA_JSON)) {
+      return BoteIndex.eventDiscrimination(service)
+          .map(Discrimination::valueOf)
           .orElse(Discrimination.ENVELOPE);
     }
     if (isRedisService(service)) {
@@ -195,28 +160,44 @@ final class AsyncApiConverter {
   }
 
   ObjectNode convert() {
+    BoteIndex index = BoteIndex.of(model);
     for (ServiceShape service : services) {
       String contentType = contentTypeFor(service);
       Discrimination discrimination = discriminationFor(service);
       for (ShapeId operationId : service.getAllOperations()) {
         OperationShape operation = model.expectShape(operationId, OperationShape.class);
-        if (PRODUCE_TRAITS.stream().anyMatch(operation::hasTrait)) {
-          String action = perspective == Perspective.OWNER ? "receive" : "send";
-          Map<ShapeId, String> messages = new LinkedHashMap<>();
-          messages.put(operation.getInputShape(), null);
-          Optional<ShapeId> reply =
-              operation.hasTrait(REDIS_STREAM_ADD) ? operation.getOutput() : Optional.empty();
-          addOperation(operation, action, messages, contentType, discrimination, reply);
-        } else if (CONSUME_TRAITS.stream().anyMatch(operation::hasTrait)) {
-          String action = perspective == Perspective.OWNER ? "send" : "receive";
-          addOperation(
-              operation,
-              action,
-              receivedMessages(operation),
-              contentType,
-              discrimination,
-              Optional.empty());
+        Optional<Address> address = BoteIndex.address(operation);
+        if (address.isEmpty()) {
+          continue;
         }
+        String action = perspective == Perspective.OWNER ? "receive" : "send";
+        Map<ShapeId, String> messages = new LinkedHashMap<>();
+        messages.put(operation.getInputShape(), null);
+        Optional<ShapeId> reply =
+            address.get().trait().equals(BoteIndex.REDIS_STREAM_TRAIT)
+                ? operation.getOutput()
+                : Optional.empty();
+        addOperation(
+            operation, address.get(), action, messages, contentType, discrimination, reply);
+      }
+      for (UnionShape channel : index.channels(service)) {
+        Optional<Address> address = BoteIndex.address(channel);
+        if (address.isEmpty()) {
+          continue;
+        }
+        String action = perspective == Perspective.OWNER ? "send" : "receive";
+        Map<ShapeId, String> messages = new LinkedHashMap<>();
+        for (MemberShape member : channel.getAllMembers().values()) {
+          messages.putIfAbsent(member.getTarget(), member.getMemberName());
+        }
+        addOperation(
+            channel,
+            address.get(),
+            action,
+            messages,
+            contentType,
+            discrimination,
+            Optional.empty());
       }
     }
 
@@ -233,15 +214,16 @@ final class AsyncApiConverter {
   // -- operations & channels ---------------------------------------------
 
   private void addOperation(
-      OperationShape operation,
+      Shape operation,
+      Address address,
       String action,
       Map<ShapeId, String> messages,
       String contentType,
       Discrimination discrimination,
       Optional<ShapeId> reply) {
-    String address = channelAddress(operation);
     Channel channel =
-        channels.computeIfAbsent(address, a -> new Channel(a, channelBindings(a, operation)));
+        channels.computeIfAbsent(
+            address.name(), a -> new Channel(a, channelBindings(address, operation)));
     for (Map.Entry<ShapeId, String> message : messages.entrySet()) {
       ShapeId messageId = message.getKey();
       String memberName = message.getValue();
@@ -271,38 +253,11 @@ final class AsyncApiConverter {
     }
     operations.put(
         operationName,
-        operationNode(operation, action, address, messages.keySet(), replyChannel, reply));
-  }
-
-  /**
-   * A consume operation's output contains a member targeting a {@code @streaming} union; each union
-   * member is a possible message type, keyed here by its member name (the wire-level tag).
-   */
-  private Map<ShapeId, String> receivedMessages(OperationShape operation) {
-    Map<ShapeId, String> result = new LinkedHashMap<>();
-    operation
-        .getOutput()
-        .flatMap(id -> model.getShape(id).flatMap(Shape::asStructureShape))
-        .ifPresent(
-            output -> {
-              for (MemberShape member : output.getAllMembers().values()) {
-                model
-                    .getShape(member.getTarget())
-                    .flatMap(Shape::asUnionShape)
-                    .filter(union -> union.hasTrait(StreamingTrait.ID))
-                    .ifPresent(
-                        union -> {
-                          for (MemberShape um : union.getAllMembers().values()) {
-                            result.putIfAbsent(um.getTarget(), um.getMemberName());
-                          }
-                        });
-              }
-            });
-    return result;
+        operationNode(operation, action, address.name(), messages.keySet(), replyChannel, reply));
   }
 
   private Node operationNode(
-      OperationShape operation,
+      Shape operation,
       String action,
       String topic,
       Set<ShapeId> messages,
@@ -375,10 +330,11 @@ final class AsyncApiConverter {
   }
 
   /**
-   * The Kafka channel binding, derived once from the operation's Kafka trait and
-   * {@code @kafkaTopicConfig}.
+   * The Kafka channel binding, derived once from the shape's {@code @kafkaTopic} and {@code
+   * @kafkaTopicConfig}.
    */
-  private Node kafkaChannelBindings(String topic, Shape topicShape) {
+  private Node kafkaChannelBindings(Address address, Shape topicShape) {
+    String topic = address.name();
     ObjectNode.Builder kafka =
         Node.objectNodeBuilder()
             .withMember("topic", topic)
@@ -388,7 +344,7 @@ final class AsyncApiConverter {
     boolean hasTopicConfig = false;
 
     Optional<ObjectNode> config =
-        topicShape.findTrait(KAFKA_TOPIC_CONFIG).map(t -> t.toNode().expectObjectNode());
+        topicShape.findTrait(BoteIndex.KAFKA_TOPIC_CONFIG).map(t -> t.toNode().expectObjectNode());
     if (config.isPresent()) {
       ObjectNode c = config.get();
       copyNumber(c, "partitions", kafka, "partitions");
@@ -399,12 +355,7 @@ final class AsyncApiConverter {
       hasTopicConfig |= copyNumber(c, "maxMessageBytes", topicConfig, "max.message.bytes");
     }
 
-    boolean compacted =
-        kafkaOperationTrait(topicShape)
-            .flatMap(n -> n.getBooleanMember("compacted"))
-            .map(b -> b.getValue())
-            .orElse(false);
-    if (compacted) {
+    if (BoteIndex.addressFlag(address, "compacted")) {
       topicConfig.withMember("cleanup.policy", ArrayNode.builder().withValue("compact").build());
       hasTopicConfig = true;
     }
@@ -501,7 +452,7 @@ final class AsyncApiConverter {
 
   private Optional<MemberShape> keyMember(StructureShape structure) {
     return structure.getAllMembers().values().stream()
-        .filter(m -> m.hasTrait(KAFKA_KEY))
+        .filter(m -> m.hasTrait(BoteIndex.KAFKA_KEY))
         .findFirst();
   }
 
@@ -538,7 +489,7 @@ final class AsyncApiConverter {
     for (MemberShape member : structure.getAllMembers().values()) {
       Optional<String> headerName =
           member
-              .findTrait(KAFKA_HEADER)
+              .findTrait(BoteIndex.KAFKA_HEADER)
               .map(t -> t.toNode().expectObjectNode().expectStringMember("name").getValue());
       if (headerName.isPresent()) {
         properties.withMember(headerName.get(), jsonTypeOf(member));
@@ -605,7 +556,7 @@ final class AsyncApiConverter {
 
     Set<String> headerMembers = new LinkedHashSet<>();
     for (MemberShape member : structure.get().getAllMembers().values()) {
-      if (member.hasTrait(KAFKA_HEADER)) {
+      if (member.hasTrait(BoteIndex.KAFKA_HEADER)) {
         headerMembers.add(member.getMemberName());
       }
     }
@@ -675,7 +626,7 @@ final class AsyncApiConverter {
 
   // -- helpers ------------------------------------------------------------
 
-  private String operationName(OperationShape operation) {
+  private String operationName(Shape operation) {
     String name = operation.getId().getName();
     if (!operations.containsKey(name)) {
       return name;
@@ -691,37 +642,9 @@ final class AsyncApiConverter {
     return qualified + suffix;
   }
 
-  /** The channel address, read from whichever broker operation trait the operation carries. */
-  private String channelAddress(Shape channelShape) {
-    for (Map.Entry<ShapeId, String> entry : ADDRESS_MEMBERS.entrySet()) {
-      Optional<String> name =
-          channelShape
-              .findTrait(entry.getKey())
-              .map(
-                  t ->
-                      t.toNode()
-                          .expectObjectNode()
-                          .expectStringMember(entry.getValue())
-                          .getValue());
-      if (name.isPresent()) {
-        return name.get();
-      }
-    }
-    throw new IllegalStateException(
-        "Operation " + channelShape.getId() + " has no broker operation trait");
-  }
-
-  /** The Kafka operation trait's value node, if the operation carries one. */
-  private Optional<ObjectNode> kafkaOperationTrait(Shape channelShape) {
-    return channelShape
-        .findTrait(KAFKA_PRODUCE)
-        .or(() -> channelShape.findTrait(KAFKA_CONSUME))
-        .map(t -> t.toNode().expectObjectNode());
-  }
-
   /** The channel's protocol binding, or null where the broker has no standard AsyncAPI binding. */
-  private Node channelBindings(String address, Shape channelShape) {
-    if (kafkaOperationTrait(channelShape).isPresent()) {
+  private Node channelBindings(Address address, Shape channelShape) {
+    if (address.trait().equals(BoteIndex.KAFKA_TOPIC_TRAIT)) {
       return kafkaChannelBindings(address, channelShape);
     }
     return null; // Redis has no standard AsyncAPI channel binding.
@@ -748,7 +671,7 @@ final class AsyncApiConverter {
     return Node.objectNodeBuilder().withMember("$ref", pointer).build();
   }
 
-  /** One channel (a Kafka topic or Redis address), accumulated from operation address traits. */
+  /** One AsyncAPI channel (a Kafka topic or Redis address), accumulated from address traits. */
   private static final class Channel {
     private final String topic;
     private final Node bindings;

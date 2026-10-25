@@ -6,109 +6,75 @@ use smithy.api#protocolDefinition
 
 /// A Smithy protocol for Redis Streams using JSON serialization.
 ///
-/// Clients XADD JSON-encoded entries to a stream (@redisStreamAdd) and read
-/// them with XREAD / XREADGROUP (@redisStreamRead).
+/// Clients XADD JSON-encoded command entries to an operation's stream, and
+/// read the owner's events from a channel's stream with XREAD / XREADGROUP.
 ///
-/// Wire rules: @command values are the bare JSON serialization of their
+/// Wire rules: command values are the bare JSON serialization of their
 /// structure. @event values are wrapped in a single-key envelope whose key is
-/// the @streaming union member name (the restJson1 tagged-union idiom), so
+/// the channel union member name (the restJson1 tagged-union idiom), so
 /// consumers of a multi-event stream can tell event types apart.
 ///
-/// An @redisStreamAdd operation with a @reply output is request/reply. The
-/// request carries reply_to and correlation_id transport metadata. The
-/// requester listens on the temporary Pub/Sub channel named by reply_to before
-/// adding the request to the stream. Owner replicas consume requests through
-/// one shared consumer group, so each delivery is assigned to one replica; it
+/// A @redisStream operation with an output is request/reply. The request
+/// carries reply_to and correlation_id transport metadata. The requester
+/// listens on the temporary Pub/Sub channel named by reply_to before adding
+/// the request to the stream. Owner replicas consume requests through one
+/// shared consumer group, so each delivery is assigned to one replica; it
 /// publishes one reply to reply_to and echoes correlation_id. Requests can be
 /// redelivered after failures. Reply delivery is at-most-once even though the
 /// request itself is durable.
 @protocolDefinition(
-    traits: [bote#redisStreamAdd, bote#redisStreamRead, bote#event, bote#command, bote#reply]
+    traits: [bote#redisStream, bote#channels, bote#event]
 )
 @trait(selector: "service")
 structure redisStreamsJson {}
 
-/// Marks an operation as an XADD capability: clients may append the
-/// operation's input — a @command structure — to the given Redis stream.
-/// With no output the operation is fire-and-forget. An output annotated with
-/// @reply makes it request/reply using a temporary Pub/Sub reply channel.
-@trait(
-    selector: "operation"
-    conflicts: [bote#redisStreamRead]
-)
-structure redisStreamAdd {
+/// Binds an operation or a channel to a Redis stream.
+///
+/// On an operation, the owner reads the operation's input, a command, from
+/// the stream. With no output the operation is fire-and-forget; an output
+/// makes it request/reply using a temporary Pub/Sub reply channel. On a
+/// channel union, the owner appends the union's events to the stream.
+@trait(selector: ":is(operation, union)")
+structure redisStream {
     /// The Redis stream key (e.g. "chat:messages").
     @required
-    stream: String
+    key: String
 
     /// Caps the stream length (approximate XADD MAXLEN). Older entries are
-    /// trimmed once the stream grows past this many entries. Omit for
-    /// unbounded. Must agree with every other operation on the same stream.
-    @range(min: 1)
-    maxLen: Long
-}
-
-/// Marks an operation as an XREAD capability: clients may read the
-/// operation's events from the given Redis stream. The operation output must
-/// contain a member targeting a @streaming union whose members are @event
-/// structures.
-@trait(
-    selector: "operation"
-    conflicts: [bote#redisStreamAdd]
-)
-structure redisStreamRead {
-    /// The Redis stream key (e.g. "chat:messages").
-    @required
-    stream: String
-
-    /// Caps the stream length (approximate XADD MAXLEN). Documents the
-    /// channel's replay bound for readers. Must agree with every other
-    /// operation on the same stream.
+    /// trimmed once the stream grows past this many entries; for a channel
+    /// this is the replay bound for readers. Omit for unbounded. Must agree
+    /// with every other operation on the same stream.
     @range(min: 1)
     maxLen: Long
 }
 
 /// A Smithy protocol for Redis Pub/Sub using JSON serialization.
 ///
-/// Clients PUBLISH JSON messages to a channel (@redisPublish) and SUBSCRIBE
-/// to them (@redisSubscribe). Pub/Sub is fire-and-forget: messages are not
-/// persisted, there is no replay, every active subscriber receives each
-/// message, and the channel carries no configuration. Publish operations must
-/// not define an output; request/reply uses Redis Streams instead.
+/// Clients PUBLISH JSON commands to an operation's Pub/Sub channel and
+/// SUBSCRIBE to a channel union's Pub/Sub channel for the owner's events.
+/// Pub/Sub is fire-and-forget: messages are not persisted, there is no
+/// replay, every active subscriber receives each message, and the address
+/// carries no configuration. Operations must not define an output;
+/// request/reply uses Redis Streams instead.
 ///
-/// Wire rules: @command values are the bare JSON serialization of their
+/// Wire rules: command values are the bare JSON serialization of their
 /// structure. @event values are wrapped in a single-key envelope whose key is
-/// the @streaming union member name (the restJson1 tagged-union idiom), so
+/// the channel union member name (the restJson1 tagged-union idiom), so
 /// consumers of a multi-event channel can tell event types apart.
 @protocolDefinition(
-    traits: [bote#redisPublish, bote#redisSubscribe, bote#event, bote#command]
+    traits: [bote#redisChannel, bote#channels, bote#event]
 )
 @trait(selector: "service")
 structure redisPubSubJson {}
 
-/// Marks an operation as a PUBLISH capability: clients may publish the
-/// operation's input — a @command structure — to the given Redis Pub/Sub
-/// channel. Publish operations must not define an output.
-@trait(
-    selector: "operation"
-    conflicts: [bote#redisSubscribe]
-)
-structure redisPublish {
+/// Binds an operation or a channel to a Redis Pub/Sub channel.
+///
+/// On an operation, the owner receives the operation's input, a command,
+/// from the Pub/Sub channel. On a channel union, the owner publishes the
+/// union's events to it.
+@trait(selector: ":is(operation, union)")
+structure redisChannel {
     /// The Redis Pub/Sub channel name (e.g. "presence").
     @required
-    channel: String
-}
-
-/// Marks an operation as a SUBSCRIBE capability: clients may subscribe to the
-/// operation's events on the given Redis Pub/Sub channel. The operation
-/// output must contain a member targeting a @streaming union whose members
-/// are @event structures.
-@trait(
-    selector: "operation"
-    conflicts: [bote#redisPublish]
-)
-structure redisSubscribe {
-    /// The Redis Pub/Sub channel name (e.g. "presence").
-    @required
-    channel: String
+    name: String
 }

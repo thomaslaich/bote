@@ -2,35 +2,27 @@ $version: "2"
 
 namespace bote
 
-// Broker-agnostic core. These traits carry no Kafka- or Redis-specific meaning:
-// they classify message payloads by their role in the contract. Operations are
-// bound to a broker with per-broker operation traits (@kafkaProduce,
-// @redisSubscribe, ...), which carry the channel address — mirroring how
-// Smithy's HTTP and MQTT bindings speak their transport's language while the
-// shapes stay transport-neutral.
-/// Marks a payload structure as an event message.
-@trait(
-    selector: "structure"
-    conflicts: [bote#command, bote#reply]
-)
-structure event {}
-
-/// Marks a payload structure as a command message.
-@trait(
-    selector: "structure"
-    conflicts: [bote#event, bote#reply]
-)
-structure command {}
-
-/// Marks a payload structure as a reply message.
+// Broker-agnostic core. A bote service owns its contract: it receives commands,
+// which are its operations, and publishes events to channels, which are unions
+// it lists in @channels. Per-broker address traits (@kafkaTopic, @redisStream,
+// @redisChannel) bind both to a broker address. They name the address, never an
+// action, so the contract reads the same from the owner's and a client's side.
+/// Lists the channels a bote service owns.
 ///
-/// Redis Streams @redisStreamAdd operations with a @reply output use
-/// request/reply semantics: the requester supplies a temporary Pub/Sub reply
-/// channel and a correlation ID in the transport metadata. The reply payload
-/// is the bare serialization of this structure. Kafka operations and Redis
-/// @redisPublish operations do not support reply outputs.
-@trait(
-    selector: "structure"
-    conflicts: [bote#event, bote#command]
-)
-structure reply {}
+/// A channel is a union whose members target @event structures and that
+/// carries the address trait of the service's protocol. The owner publishes
+/// the union's events to that address. Union member names are the event
+/// discriminators. Every union with an address trait is listed by exactly one
+/// service.
+@trait(selector: "service")
+list channels {
+    @idRef(failWhenMissing: true, selector: "union")
+    member: String
+}
+
+/// Marks a structure as an event.
+///
+/// Events are members of channels. An @event structure is never the input
+/// or output of an operation.
+@trait(selector: "structure")
+structure event {}

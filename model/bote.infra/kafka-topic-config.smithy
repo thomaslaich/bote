@@ -6,8 +6,8 @@ use smithy.api#range
 
 /// Declares infrastructure configuration for a Kafka topic.
 ///
-/// Applied to the operation that declares the topic. Declare it on at most
-/// one operation per topic (validator-enforced).
+/// Applied to the operation or channel that carries the topic's @kafkaTopic
+/// trait. Declare it on at most one shape per topic (validator-enforced).
 ///
 /// This trait lives in bote.infra, not bote, because topic provisioning is
 /// not part of the message contract: the contract owner defines the commands
@@ -22,7 +22,7 @@ use smithy.api#range
 /// configuration file.
 ///
 /// All fields are optional. Omitted fields inherit broker-level defaults.
-@trait(selector: ":is([trait|bote#kafkaProduce], [trait|bote#kafkaConsume])")
+@trait(selector: "[trait|bote#kafkaTopic]")
 structure kafkaTopicConfig {
     /// Number of partitions.
     ///

@@ -15,13 +15,12 @@ class KafkaKeyValidatorTest {
       $version: "2"
       namespace test
 use bote#kafkaJson
-use bote#kafkaProduce
 use bote#kafkaKey
-use bote#command
+use bote#kafkaTopic
 
 @kafkaJson
       service TestService { operations: [Publish] }
-      @kafkaProduce(topic: "events")
+      @kafkaTopic(name: "events")
       operation Publish { input: %s }
 """;
 
@@ -39,7 +38,7 @@ use bote#command
         PREAMBLE.formatted("Payload")
             +
 """
-@command
+            @input
             structure Payload {
 @kafkaKey
                 id: String
@@ -55,7 +54,7 @@ use bote#command
         PREAMBLE.formatted("Payload")
             +
 """
-@command
+            @input
             structure Payload {
                 id: String
                 value: String
@@ -70,7 +69,7 @@ use bote#command
         PREAMBLE.formatted("Payload")
             +
 """
-@command
+            @input
             structure Payload {
 @kafkaKey
                 id: String
@@ -79,5 +78,35 @@ use bote#command
             }
 """;
     assertTrue(validate(model).stream().anyMatch(e -> e.getSeverity() == Severity.ERROR));
+  }
+
+  @Test
+  void eventWithTwoKeyMembersIsError() {
+    String model =
+        """
+        $version: "2"
+        namespace test
+        use bote#channels
+        use bote#event
+        use bote#kafkaJson
+        use bote#kafkaKey
+        use bote#kafkaTopic
+
+        @kafkaJson
+        @channels([Events])
+        service TestService {}
+
+        @kafkaTopic(name: "events")
+        union Events { happened: Happened }
+
+        @event
+        structure Happened {
+            @kafkaKey
+            id: String
+            @kafkaKey
+            secondKey: String
+        }
+        """;
+    assertTrue(validate(model).stream().anyMatch(e -> e.getMessage().contains("@kafkaKey")));
   }
 }

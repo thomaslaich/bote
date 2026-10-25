@@ -1,44 +1,35 @@
 $version: "2"
 
-// The order service contract: clients can produce order commands and consume
-// order lifecycle events. Topics are carried by the broker operation traits.
+// The order service contract: the service receives order commands and
+// publishes order lifecycle events. Topics are carried by @kafkaTopic.
 namespace examples.kafka.orders
 
-use bote#command
+use bote#channels
 use bote#event
-use bote#kafkaConsume
 use bote#kafkaHeader
 use bote#kafkaJson
 use bote#kafkaKey
-use bote#kafkaProduce
+use bote#kafkaTopic
 
 /// The order service API.
 @title("Order Service API")
 @kafkaJson
+@channels([OrderEvents])
 service OrderService {
     version: "1.0.0"
     operations: [
         SubmitOrder
-        ConsumeOrderEvents
     ]
 }
 
 /// Submit a new order for processing.
-@kafkaProduce(topic: "orders.commands")
+@kafkaTopic(name: "orders.commands")
 operation SubmitOrder {
     input: SubmitOrderCommand
 }
 
-/// Consume order lifecycle events.
-@kafkaConsume(topic: "orders.events")
-operation ConsumeOrderEvents {
-    output := {
-        events: OrderEvents
-    }
-}
-
 /// Command to submit a new order.
-@command
+@input
 structure SubmitOrderCommand {
     @kafkaKey
     orderId: String
@@ -51,6 +42,14 @@ structure SubmitOrderCommand {
 
     @range(min: 0)
     totalCents: Integer
+}
+
+/// Order lifecycle events.
+@kafkaTopic(name: "orders.events")
+union OrderEvents {
+    placed: OrderPlaced
+    shipped: OrderShipped
+    cancelled: OrderCancelled
 }
 
 /// An order was placed.
@@ -89,12 +88,4 @@ structure OrderCancelled {
     reason: String
 
     cancelledAt: Timestamp
-}
-
-/// The complete event stream offered by the order service.
-@streaming
-union OrderEvents {
-    placed: OrderPlaced
-    shipped: OrderShipped
-    cancelled: OrderCancelled
 }

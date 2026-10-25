@@ -1,6 +1,6 @@
 # Design: Event channels
 
-Status: proposed.
+Status: accepted.
 
 ## Summary
 

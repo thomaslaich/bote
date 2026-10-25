@@ -10,6 +10,27 @@ and bote aims to follow [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+### Changed
+
+- Events are published to channels: unions a service lists in `@channels`,
+  whose members are `@event` structures. Consume, read, and subscribe
+  operations and `@streaming` event unions are gone.
+- `@kafkaTopic`, `@redisStream`, and `@redisChannel` bind both operations and
+  channels to an address, replacing `@kafkaProduce`, `@kafkaConsume`,
+  `@redisStreamAdd`, `@redisStreamRead`, `@redisPublish`, and
+  `@redisSubscribe`.
+- Commands and replies are Smithy `@input` and `@output` structures;
+  `@command` and `@reply` are gone.
+- Every operation of a bote service needs an address trait, and an address is
+  either one channel or the address of command operations.
+- `bote.infra#kafkaTopicConfig` and `@avroCompatibility` apply to the shape
+  that carries the topic, including channels.
+
+### Added
+
+- `BoteIndex`, a knowledge index that resolves a model's bote services,
+  address traits, and channels for generators.
+
 ## [0.1.0] - 2026-09-02
 
 ### Added
