@@ -35,7 +35,7 @@ final class RedisGenerator extends MessagingGenerator {
 
   @Override
   String runtimeNamespace() {
-    return "Bote.Messaging.Redis";
+    return "Bote.Redis";
   }
 
   @Override

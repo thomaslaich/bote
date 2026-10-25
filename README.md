@@ -173,7 +173,7 @@ A channel handler has one method per event, plus `HandleUnknownAsync` for
 events the contract does not know yet, which skips them by default. The
 registration methods need `generateDependencyInjection: true`.
 
-The generated code runs on the `Bote.Messaging.Kafka` or `Bote.Messaging.Redis`
+The generated code runs on the `Bote.Kafka` or `Bote.Redis`
 NuGet package:
 
 ```csharp

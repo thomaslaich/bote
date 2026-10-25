@@ -47,7 +47,7 @@ final class KafkaGenerator extends MessagingGenerator {
 
   @Override
   String runtimeNamespace() {
-    return "Bote.Messaging.Kafka";
+    return "Bote.Kafka";
   }
 
   @Override

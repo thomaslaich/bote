@@ -18,7 +18,7 @@ stage:
 # when BOTE_TEST_REDIS points at a Redis; `devenv test` starts one and sets it.
 dotnet-test: stage
     # NSmithy caches resolved plugins by coordinate; drop it so the freshly staged snapshot is used.
-    rm -rf dotnet/tests/Bote.Messaging.Generated.Tests/obj
+    rm -rf dotnet/tests/Bote.Generated.Tests/obj
     BOTE_MAVEN_REPO={{ justfile_directory() }}/build/maven-repo dotnet test dotnet/Bote.slnx
 
 # Format all .smithy files
@@ -58,7 +58,7 @@ publish-local:
 
 # Pack the C# runtime packages to dotnet/artifacts/packages
 pack VERSION="0.0.0-SNAPSHOT":
-    for project in Bote.Messaging Bote.Messaging.Kafka Bote.Messaging.Redis; do dotnet pack dotnet/src/$project -c Release -p:Version={{ VERSION }}; done
+    for project in Bote Bote.Kafka Bote.Redis; do dotnet pack dotnet/src/$project -c Release -p:Version={{ VERSION }}; done
 
 # Publish the Java artifacts to Maven Central via the Sonatype Central Portal and the C# runtime to
 # NuGet. Used by the release workflow; expects MAVEN_CENTRAL_USERNAME / MAVEN_CENTRAL_PASSWORD,

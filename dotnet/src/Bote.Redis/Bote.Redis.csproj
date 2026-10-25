@@ -1,0 +1,9 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <ItemGroup>
+    <ProjectReference Include="../Bote/Bote.csproj" />
+    <PackageReference Include="StackExchange.Redis" />
+    <PackageReference Include="Microsoft.Extensions.Hosting" />
+    <InternalsVisibleTo Include="Bote.Tests" />
+    <InternalsVisibleTo Include="Bote.Generated.Tests" />
+  </ItemGroup>
+</Project>

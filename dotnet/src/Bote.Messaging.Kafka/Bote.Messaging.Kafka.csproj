@@ -1,8 +1,0 @@
-<Project Sdk="Microsoft.NET.Sdk">
-  <ItemGroup>
-    <ProjectReference Include="../Bote.Messaging/Bote.Messaging.csproj" />
-    <PackageReference Include="Confluent.Kafka" />
-    <PackageReference Include="Microsoft.Extensions.Hosting" />
-    <InternalsVisibleTo Include="Bote.Messaging.Tests" />
-  </ItemGroup>
-</Project>

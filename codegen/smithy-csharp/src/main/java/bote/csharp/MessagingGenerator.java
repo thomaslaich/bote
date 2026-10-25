@@ -35,7 +35,7 @@ abstract class MessagingGenerator {
     this.service = contract.serviceName();
   }
 
-  /** The runtime namespace of the broker, such as {@code Bote.Messaging.Kafka}. */
+  /** The runtime namespace of the broker, such as {@code Bote.Kafka}. */
   abstract String runtimeNamespace();
 
   /** Writes the codec fields and the encode and decode methods both sides use. */
@@ -82,7 +82,7 @@ abstract class MessagingGenerator {
             path,
             namespace,
             writer -> {
-              writer.addImport("Bote.Messaging");
+              writer.addImport("Bote");
               writer.addImport(runtimeNamespace());
               body.accept(writer);
             });
