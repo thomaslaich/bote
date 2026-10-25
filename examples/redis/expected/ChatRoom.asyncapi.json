@@ -99,6 +99,15 @@
                 "contentType": "application/json",
                 "payload": {
                     "$ref": "#/components/schemas/PostMessageInput"
+                },
+                "headers": {
+                    "type": "object",
+                    "properties": {
+                        "bote-type": {
+                            "type": "string",
+                            "const": "PostMessage"
+                        }
+                    }
                 }
             },
             "GetRoomStatusInput": {
@@ -116,6 +125,10 @@
                         },
                         "correlation_id": {
                             "type": "string"
+                        },
+                        "bote-type": {
+                            "type": "string",
+                            "const": "GetRoomStatus"
                         }
                     },
                     "required": [

@@ -8,7 +8,10 @@ import io.github.thomaslaich.nsmithy.csharp.codegen.CSharpNaming;
 import io.github.thomaslaich.nsmithy.csharp.codegen.GenerationContext;
 import io.github.thomaslaich.nsmithy.csharp.codegen.generators.SchemaGenerator;
 import io.github.thomaslaich.nsmithy.csharp.codegen.writer.CSharpWriter;
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
 import software.amazon.smithy.model.shapes.Shape;
@@ -115,6 +118,17 @@ abstract class MessagingGenerator {
           command.name(),
           commandInbound(command));
     }
+    if (!contract.commands().isEmpty()) {
+      writer.write(
+          """
+          // One per command address, dispatching on each command's bote-type.
+          internal static readonly InboundBinding[] CommandInbounds =
+          [
+              ${L|}
+          ];
+          """,
+          String.join(",\n", commandInbounds()));
+    }
     for (Channel channel : contract.channels()) {
       for (Event event : channel.events()) {
         writer.write(
@@ -135,11 +149,7 @@ abstract class MessagingGenerator {
         w -> {
           if (!contract.commands().isEmpty()) {
             writeConsumerRegistration(
-                w,
-                service + "CommandConsumer",
-                contract.commands().stream()
-                    .map(c -> service + "Messaging." + c.name() + "Inbound")
-                    .toList());
+                w, service + "CommandConsumer", List.of(service + "Messaging.CommandInbounds"));
           }
           for (Channel channel : contract.channels()) {
             writeSingleton(w, channel.name() + "Publisher", "sender");
@@ -364,6 +374,27 @@ abstract class MessagingGenerator {
   }
 
   // Inbounds and outbounds.
+
+  /** One inbound per command address, dispatching on each command's type. */
+  private List<String> commandInbounds() {
+    Map<String, List<Command>> byAddress = new LinkedHashMap<>();
+    for (Command command : contract.commands()) {
+      byAddress.computeIfAbsent(command.address().name(), a -> new ArrayList<>()).add(command);
+    }
+    return byAddress.values().stream()
+        .map(
+            commands ->
+                commands.stream()
+                    .map(c -> String.format("[%s] = %sInbound", literal(c.type()), c.name()))
+                    .collect(
+                        Collectors.joining(
+                            ", ",
+                            "InboundBinding.Commands(new"
+                                + " System.Collections.Generic.Dictionary<string, InboundBinding> {"
+                                + " ",
+                            " })")))
+        .toList();
+  }
 
   private String outboundType(Command command) {
     String input = typeName(command.input());

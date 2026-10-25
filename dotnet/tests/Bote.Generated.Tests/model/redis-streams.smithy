@@ -11,7 +11,7 @@ use bote#redisStreamsJson
 @channels([ChatEvents])
 service ChatRoom {
     version: "1.0.0"
-    operations: [PostMessage]
+    operations: [PostMessage, DeleteMessage]
 }
 
 @redisStream(key: "tests.streams:commands", maxLen: 10000)
@@ -22,6 +22,14 @@ operation PostMessage {
 
         @length(min: 1, max: 4000)
         body: String
+    }
+}
+
+@redisStream(key: "tests.streams:commands", maxLen: 10000)
+operation DeleteMessage {
+    input := {
+        roomId: String
+        messageId: String
     }
 }
 

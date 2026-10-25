@@ -11,7 +11,9 @@ use smithy.api#protocolDefinition
 ///
 /// Wire rules:
 ///
-/// - A command message value is the bare JSON serialization of its structure.
+/// - A command message value is the bare JSON serialization of its structure,
+///   and a Kafka header named "bote-type" carries the operation name, so
+///   several commands can share a topic.
 /// - An @event message value is serialized according to eventDiscrimination,
 ///   so consumers of a multi-event channel can tell event types apart.
 /// - Members annotated with @kafkaHeader travel only as Kafka headers and are

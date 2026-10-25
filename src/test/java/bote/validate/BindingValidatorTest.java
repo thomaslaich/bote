@@ -305,10 +305,14 @@ class BindingValidatorTest {
             structure RoomOpened { roomId: String }
 
             @redisPubSubCbor
-            service Presence { operations: [SetPresence] }
+            @channels([PresenceEvents])
+            service Presence { version: "1" }
 
-            @redisChannel(name: "presence.commands")
-            operation SetPresence { input := { userId: String } }
+            @redisChannel(name: "presence")
+            union PresenceEvents { changed: PresenceChanged }
+
+            @event
+            structure PresenceChanged { userId: String }
             """);
   }
 
@@ -318,29 +322,29 @@ class BindingValidatorTest {
         REDIS
             + """
             @redisPubSubCbor
-            service Presence { operations: [SetPresence] }
+            @channels([PresenceEvents])
+            service Presence { version: "1" }
 
-            @redisStream(key: "presence.commands")
-            operation SetPresence { input := { userId: String } }
+            @redisStream(key: "presence")
+            union PresenceEvents { changed: PresenceChanged }
+
+            @event
+            structure PresenceChanged { userId: String }
             """,
         "redisChannel");
   }
 
   @Test
-  void redisPubSubOperationWithOutputIsError() {
+  void redisPubSubServiceWithOperationsIsError() {
     assertError(
         REDIS
             + """
             @redisPubSubJson
             service Presence { operations: [SetPresence] }
 
-            @redisChannel(name: "presence")
-            operation SetPresence {
-                input := { userId: String }
-                output := { ok: Boolean }
-            }
+            operation SetPresence { input := { userId: String } }
             """,
-        "must not define an output");
+        "Redis Pub/Sub services have no operations");
   }
 
   @Test
@@ -350,10 +354,7 @@ class BindingValidatorTest {
             + """
             @redisPubSubJson
             @channels([PresenceEvents])
-            service Presence { operations: [SetPresence] }
-
-            @redisChannel(name: "presence.commands")
-            operation SetPresence { input := { userId: String } }
+            service Presence { version: "1" }
 
             @redisChannel(name: "presence")
             union PresenceEvents { changed: PresenceChanged }

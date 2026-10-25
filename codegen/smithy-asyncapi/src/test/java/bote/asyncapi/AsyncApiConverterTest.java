@@ -37,9 +37,9 @@ class AsyncApiConverterTest {
       }
 
       @redisPubSubJson
+      @channels([PresenceUpdates])
       service PresenceService {
           version: "2024-01-01"
-          operations: [SetPresence]
       }
 
       @kafkaTopic(name: "orders.commands")
@@ -49,7 +49,7 @@ class AsyncApiConverterTest {
       operation PublishState { input: SetOrderState }
 
       @redisChannel(name: "presence")
-      operation SetPresence { input: SetPresenceCommand }
+      union PresenceUpdates { changed: PresenceChanged }
 
       /// Order lifecycle events.
       @kafkaTopic(name: "orders")
@@ -80,8 +80,8 @@ class AsyncApiConverterTest {
           orderId: String
       }
 
-      @input
-      structure SetPresenceCommand {
+      @event
+      structure PresenceChanged {
           userId: String
           status: String
       }
@@ -169,6 +169,20 @@ class AsyncApiConverterTest {
   }
 
   @Test
+  void commandsNameTheirOperationInTheTypeHeader() {
+    ObjectNode headers =
+        convert()
+            .expectObjectMember("components")
+            .expectObjectMember("messages")
+            .expectObjectMember("SubmitOrder")
+            .expectObjectMember("headers")
+            .expectObjectMember("properties");
+    assertEquals(
+        "PublishOrder",
+        headers.expectObjectMember("bote-type").expectStringMember("const").getValue());
+  }
+
+  @Test
   void groupedServicesCanContainKafkaAndRedisChannels() {
     ObjectNode channels = convertGrouped().expectObjectMember("channels");
     assertTrue(channels.getMember("orders").isPresent());
@@ -178,13 +192,13 @@ class AsyncApiConverterTest {
         channels
             .expectObjectMember("presence")
             .expectObjectMember("messages")
-            .getMember("SetPresenceCommand")
+            .getMember("PresenceChanged")
             .isPresent());
     assertTrue(
         convertGrouped()
             .expectObjectMember("components")
             .expectObjectMember("schemas")
-            .getMember("SetPresenceCommand")
+            .getMember("PresenceChanged")
             .isPresent());
   }
 

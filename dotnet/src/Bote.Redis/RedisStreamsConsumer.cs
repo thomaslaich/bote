@@ -176,19 +176,19 @@ public sealed class RedisStreamsConsumer : BackgroundService
         CancellationToken ct
     )
     {
+        var payload = delivery.ToPayload();
+        var target = binding.Resolve(payload);
         if (
-            binding.HasReply
+            target.HasReply
             && (
                 string.IsNullOrEmpty(delivery.ReplyTo)
                 || string.IsNullOrEmpty(delivery.CorrelationId)
             )
         )
             throw new InvalidOperationException(
-                $"Request for {binding.OperationId} has no reply destination or correlation ID."
+                $"Request for {target.OperationId} has no reply destination or correlation ID."
             );
-        var reply = await processor
-            .ProcessAsync(binding, new MessagePayload(delivery.Payload), ct)
-            .ConfigureAwait(false);
+        var reply = await processor.ProcessAsync(target, payload, ct).ConfigureAwait(false);
         ct.ThrowIfCancellationRequested();
         if (reply is not null)
         {
@@ -221,7 +221,7 @@ public sealed class RedisStreamsConsumer : BackgroundService
                 foreach (var delivery in entries)
                 {
                     await processor
-                        .ProcessAsync(binding, new MessagePayload(delivery.Payload), ct)
+                        .ProcessAsync(binding, delivery.ToPayload(), ct)
                         .ConfigureAwait(false);
                     ct.ThrowIfCancellationRequested();
                     if (options.CheckpointStore is { } store)

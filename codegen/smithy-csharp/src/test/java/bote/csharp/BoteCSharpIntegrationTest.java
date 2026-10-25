@@ -127,7 +127,7 @@ class BoteCSharpIntegrationTest {
   }
 
   @Test
-  void commandsSharingAnAddressAreRejected() {
+  void commandsSharingAnAddressAreDispatchedByType() {
     String model =
         """
         $version: "2"
@@ -145,9 +145,16 @@ class BoteCSharpIntegrationTest {
         operation TurnOff { input := { id: String } }
         """;
 
-    CodegenException exception =
-        assertThrows(CodegenException.class, () -> generate(model, "test#Lights", true, true));
-    assertTrue(exception.getMessage().contains("lights.commands"));
+    MockManifest manifest = generate(model, "test#Lights", true, true);
+
+    assertContains(
+        file(manifest, Path.of("Test/Lights.Messaging.Server.g.cs")),
+        "InboundBinding.Commands(new System.Collections.Generic.Dictionary<string,"
+            + " InboundBinding> { [\"TurnOff\"] = TurnOffInbound,"
+            + " [\"TurnOn\"] = TurnOnInbound })");
+    assertContains(
+        file(manifest, Path.of("Test/Lights.Messaging.g.cs")),
+        "headers.Add(\"bote-type\", Encoding.UTF8.GetBytes(\"TurnOff\"));");
   }
 
   @Test
@@ -174,6 +181,10 @@ class BoteCSharpIntegrationTest {
   private static MockManifest generate(
       String model, String service, boolean server, boolean client) {
     return CodegenTestSupport.generate(CodegenTestSupport.model(model), service, server, client);
+  }
+
+  private static void assertContains(String content, String fragment) {
+    assertTrue(content.contains(fragment), () -> "expected `" + fragment + "` in:\n" + content);
   }
 
   private static String file(MockManifest manifest, Path path) {

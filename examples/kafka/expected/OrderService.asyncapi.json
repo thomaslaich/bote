@@ -13,6 +13,9 @@
             "messages": {
                 "SubmitOrderInput": {
                     "$ref": "#/components/messages/SubmitOrderInput"
+                },
+                "CancelOrderInput": {
+                    "$ref": "#/components/messages/CancelOrderInput"
                 }
             },
             "bindings": {
@@ -61,6 +64,18 @@
             ],
             "summary": "Submit a new order for processing."
         },
+        "CancelOrder": {
+            "action": "receive",
+            "channel": {
+                "$ref": "#/channels/orders.commands"
+            },
+            "messages": [
+                {
+                    "$ref": "#/channels/orders.commands/messages/CancelOrderInput"
+                }
+            ],
+            "summary": "Cancel an order. Shares the command topic with SubmitOrder; the bote-type\nheader tells the two apart."
+        },
         "OrderEvents": {
             "action": "send",
             "channel": {
@@ -100,8 +115,37 @@
                 "headers": {
                     "type": "object",
                     "properties": {
+                        "bote-type": {
+                            "type": "string",
+                            "const": "SubmitOrder"
+                        },
                         "x-trace-id": {
                             "type": "string"
+                        }
+                    }
+                }
+            },
+            "CancelOrderInput": {
+                "name": "CancelOrderInput",
+                "title": "CancelOrderInput",
+                "contentType": "application/json",
+                "payload": {
+                    "$ref": "#/components/schemas/CancelOrderInput"
+                },
+                "bindings": {
+                    "kafka": {
+                        "key": {
+                            "type": "string"
+                        },
+                        "bindingVersion": "0.5.0"
+                    }
+                },
+                "headers": {
+                    "type": "object",
+                    "properties": {
+                        "bote-type": {
+                            "type": "string",
+                            "const": "CancelOrder"
                         }
                     }
                 }
@@ -195,6 +239,17 @@
                     "totalCents": {
                         "type": "integer",
                         "minimum": 0
+                    }
+                }
+            },
+            "CancelOrderInput": {
+                "type": "object",
+                "properties": {
+                    "orderId": {
+                        "type": "string"
+                    },
+                    "reason": {
+                        "type": "string"
                     }
                 }
             },

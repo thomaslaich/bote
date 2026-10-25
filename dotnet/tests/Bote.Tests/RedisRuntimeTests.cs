@@ -359,7 +359,8 @@ public sealed class RedisRuntimeTests
             long? maxLength,
             string? contentType = null,
             string? replyTo = null,
-            string? correlationId = null
+            string? correlationId = null,
+            IReadOnlyDictionary<string, byte[]>? headers = null
         )
         {
             Calls.Add("append");

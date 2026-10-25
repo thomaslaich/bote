@@ -10,9 +10,11 @@ use smithy.api#protocolDefinition
 /// read the owner's events from a channel's stream with XREAD / XREADGROUP.
 ///
 /// Wire rules: command values are the bare JSON serialization of their
-/// structure. @event values are wrapped in a single-key envelope whose key is
-/// the channel union member name (the restJson1 tagged-union idiom), so
-/// consumers of a multi-event stream can tell event types apart.
+/// structure, and the entry's "bote-type" field carries the operation name, so
+/// several commands can share a stream. @event values are wrapped in a
+/// single-key envelope whose key is the channel union member name (the
+/// restJson1 tagged-union idiom), so consumers of a multi-event stream can
+/// tell event types apart.
 ///
 /// A @redisStream operation with an output is request/reply. The request
 /// carries reply_to and correlation_id transport metadata. The requester
@@ -61,15 +63,14 @@ structure redisStream {
 
 /// A Smithy protocol for Redis Pub/Sub using JSON serialization.
 ///
-/// Clients PUBLISH JSON commands to an operation's Pub/Sub channel and
-/// SUBSCRIBE to a channel union's Pub/Sub channel for the owner's events.
+/// The owner PUBLISHes the events of its channels, and consumers SUBSCRIBE.
 /// Pub/Sub is fire-and-forget: messages are not persisted, there is no
 /// replay, every active subscriber receives each message, and the address
-/// carries no configuration. Operations must not define an output;
-/// request/reply uses Redis Streams instead.
+/// carries no configuration. A Pub/Sub service therefore has no operations:
+/// a command needs one handler and durable delivery, which Redis Streams
+/// provides.
 ///
-/// Wire rules: command values are the bare JSON serialization of their
-/// structure. @event values are wrapped in a single-key envelope whose key is
+/// Wire rules: @event values are wrapped in a single-key envelope whose key is
 /// the channel union member name (the restJson1 tagged-union idiom), so
 /// consumers of a multi-event channel can tell event types apart.
 @protocolDefinition(
@@ -89,12 +90,9 @@ structure redisPubSubJson {}
 @trait(selector: "service")
 structure redisPubSubCbor {}
 
-/// Binds an operation or a channel to a Redis Pub/Sub channel.
-///
-/// On an operation, the owner receives the operation's input, a command,
-/// from the Pub/Sub channel. On a channel union, the owner publishes the
-/// union's events to it.
-@trait(selector: ":is(operation, union)")
+/// Binds a channel to a Redis Pub/Sub channel, to which the owner publishes
+/// the union's events.
+@trait(selector: "union")
 structure redisChannel {
     /// The Redis Pub/Sub channel name (e.g. "presence").
     @required

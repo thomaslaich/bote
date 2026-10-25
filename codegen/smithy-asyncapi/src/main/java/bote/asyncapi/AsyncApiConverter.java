@@ -177,6 +177,8 @@ final class AsyncApiConverter {
         String action = perspective == Perspective.OWNER ? "receive" : "send";
         Map<ShapeId, String> messages = new LinkedHashMap<>();
         messages.put(operation.getInputShape(), null);
+        // Every command names its operation, so several commands can share an address.
+        typeHeaderNames.putIfAbsent(operation.getInputShape(), operation.getId().getName());
         Optional<ShapeId> reply =
             address.get().trait().equals(BoteIndex.REDIS_STREAM_TRAIT)
                 ? operation.getOutput()

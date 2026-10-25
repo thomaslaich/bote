@@ -17,7 +17,8 @@ use smithy.api#protocolDefinition
 /// Wire rules:
 ///
 /// - A command message value is the protobuf serialization of its
-///   structure's message.
+///   structure's message, and a Kafka header named "bote-type" carries the
+///   operation name, so several commands can share a topic.
 /// - An @event message value is the protobuf serialization of the channel
 ///   union's message: the union maps to a proto message with a oneof whose
 ///   field numbers come from the union members' @protoIndex. The oneof case

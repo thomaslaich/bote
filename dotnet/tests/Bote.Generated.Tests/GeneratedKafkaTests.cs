@@ -41,6 +41,30 @@ public sealed class GeneratedKafkaTests
         Assert.Equal(new E.DimInput(DeviceId: "light-1", TraceId: "trace-1"), handler.Command);
     }
 
+    [Fact]
+    public async Task CommandsSharingATopicAreDispatchedByType()
+    {
+        var dim = new CapturingSender();
+        var reset = new CapturingSender();
+        await new E.DeviceClient(dim).DimAsync(new E.DimInput(DeviceId: "light-1", TraceId: "t"));
+        await new E.DeviceClient(reset).ResetAsync(new E.ResetInput(DeviceId: "light-2"));
+        Assert.Equal("Dim", Encoding.UTF8.GetString(dim.Payload!.Headers!["bote-type"]));
+        Assert.Equal("Reset", Encoding.UTF8.GetString(reset.Payload!.Headers!["bote-type"]));
+
+        var handler = new CommandHandler();
+        await using var services = new ServiceCollection()
+            .AddSingleton<E.IDimHandler>(handler)
+            .AddSingleton<E.IResetHandler>(handler)
+            .BuildServiceProvider();
+        var commands = Assert.Single(E.DeviceMessaging.CommandInbounds);
+        var processor = new MessageProcessor(services.GetRequiredService<IServiceScopeFactory>());
+        await processor.ProcessAsync(commands, dim.Payload);
+        await processor.ProcessAsync(commands, reset.Payload);
+
+        Assert.Equal("light-1", handler.Command?.DeviceId);
+        Assert.Equal("light-2", handler.Reset?.DeviceId);
+    }
+
     [Theory]
     [InlineData("ENVELOPE")]
     [InlineData("HEADER")]
@@ -181,13 +205,20 @@ public sealed class GeneratedKafkaTests
         }
     }
 
-    private sealed class CommandHandler : E.IDimHandler
+    private sealed class CommandHandler : E.IDimHandler, E.IResetHandler
     {
         public E.DimInput? Command { get; private set; }
+        public E.ResetInput? Reset { get; private set; }
 
         public Task HandleAsync(E.DimInput command, CancellationToken cancellationToken = default)
         {
             Command = command;
+            return Task.CompletedTask;
+        }
+
+        public Task HandleAsync(E.ResetInput command, CancellationToken cancellationToken = default)
+        {
+            Reset = command;
             return Task.CompletedTask;
         }
     }

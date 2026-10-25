@@ -97,7 +97,7 @@ final class KafkaGenerator extends MessagingGenerator {
           command.name(),
           typeName(command.input()),
           codec(command.input()),
-          payloadExpression(command.input(), null),
+          payloadExpression(command.input(), command.type()),
           deserialize(command.input(), "payload.Value"));
     }
 

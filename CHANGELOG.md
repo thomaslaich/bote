@@ -12,6 +12,12 @@ and bote aims to follow [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ### Changed
 
+- Commands carry their operation name as `bote-type`, a Kafka header or a
+  Redis Streams entry field, so several commands can share an address. The
+  "multiple command types" warning is gone.
+- Redis Pub/Sub services have no operations, and `@redisChannel` applies to
+  unions only: Pub/Sub keeps no messages and delivers each one to every
+  subscriber, so commands use Redis Streams.
 - Events are published to channels: unions a service lists in `@channels`,
   whose members are `@event` structures. Consume, read, and subscribe
   operations and `@streaming` event unions are gone.

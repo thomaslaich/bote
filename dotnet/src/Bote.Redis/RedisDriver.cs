@@ -6,8 +6,13 @@ internal sealed record RedisDelivery(
     string Id,
     byte[] Payload,
     string? ReplyTo = null,
-    string? CorrelationId = null
-);
+    string? CorrelationId = null,
+    string? ContentType = null,
+    IReadOnlyDictionary<string, byte[]>? Headers = null
+)
+{
+    public MessagePayload ToPayload() => new(Payload, Headers: Headers, ContentType: ContentType);
+}
 
 internal sealed record RedisClaimPage(string NextPosition, IReadOnlyList<RedisDelivery> Deliveries);
 
@@ -38,7 +43,8 @@ internal interface IRedisDriver
         long? maxLength,
         string? contentType = null,
         string? replyTo = null,
-        string? correlationId = null
+        string? correlationId = null,
+        IReadOnlyDictionary<string, byte[]>? headers = null
     );
     Task PublishAsync(string address, byte[] payload);
     Task<IAsyncDisposable> SubscribeAsync(string address, Action<byte[]> receive);
@@ -111,10 +117,15 @@ internal sealed class RedisDriver(IConnectionMultiplexer connection, int databas
         long? maxLength,
         string? contentType = null,
         string? replyTo = null,
-        string? correlationId = null
+        string? correlationId = null,
+        IReadOnlyDictionary<string, byte[]>? headers = null
     )
     {
         var entries = new List<NameValueEntry> { new("data", payload) };
+        if (headers is not null)
+            foreach (var header in headers)
+                if (!ReservedFields.Contains(header.Key))
+                    entries.Add(new(header.Key, header.Value));
         if (contentType is not null)
             entries.Add(new("content-type", contentType));
         if (replyTo is not null)
@@ -152,21 +163,45 @@ internal sealed class RedisDriver(IConnectionMultiplexer connection, int databas
             await queue.UnsubscribeAsync().ConfigureAwait(false);
     }
 
+    private static readonly HashSet<string> ReservedFields =
+    [
+        "data",
+        "content-type",
+        "reply_to",
+        "correlation_id",
+    ];
+
     private static RedisDelivery[] Convert(StreamEntry[] entries) =>
         entries
             .Select(entry =>
             {
                 byte[]? payload = null;
                 string? replyTo = null,
-                    correlationId = null;
+                    correlationId = null,
+                    contentType = null;
+                Dictionary<string, byte[]>? headers = null;
                 foreach (var field in entry.Values)
                 {
-                    if (field.Name == "data")
-                        payload = (byte[]?)field.Value;
-                    else if (field.Name == "reply_to")
-                        replyTo = (string?)field.Value;
-                    else if (field.Name == "correlation_id")
-                        correlationId = (string?)field.Value;
+                    var name = field.Name.ToString();
+                    switch (name)
+                    {
+                        case "data":
+                            payload = (byte[]?)field.Value;
+                            break;
+                        case "reply_to":
+                            replyTo = (string?)field.Value;
+                            break;
+                        case "correlation_id":
+                            correlationId = (string?)field.Value;
+                            break;
+                        case "content-type":
+                            contentType = (string?)field.Value;
+                            break;
+                        default:
+                            (headers ??= new(StringComparer.Ordinal))[name] =
+                                (byte[]?)field.Value ?? [];
+                            break;
+                    }
                 }
                 return new RedisDelivery(
                     entry.Id.ToString(),
@@ -175,7 +210,9 @@ internal sealed class RedisDriver(IConnectionMultiplexer connection, int databas
                             "Redis stream entry has no data field."
                         ),
                     replyTo,
-                    correlationId
+                    correlationId,
+                    contentType,
+                    headers
                 );
             })
             .ToArray();

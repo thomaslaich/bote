@@ -10,7 +10,6 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import software.amazon.smithy.model.Model;
-import software.amazon.smithy.model.shapes.OperationShape;
 import software.amazon.smithy.model.shapes.ServiceShape;
 import software.amazon.smithy.model.shapes.Shape;
 import software.amazon.smithy.model.shapes.ShapeId;
@@ -28,8 +27,6 @@ import software.amazon.smithy.model.validation.ValidationEvent;
  *   <li>operations on one address declare identical address values (compaction, {@code maxLen},
  *       ...)
  *   <li>{@code @bote.infra#kafkaTopicConfig} is declared on at most one shape per address
- *   <li>at most one command type per address (warning: bote does not yet specify how command types
- *       are discriminated on a shared address)
  * </ul>
  */
 public final class ChannelConsistencyValidator extends AbstractValidator {
@@ -127,25 +124,6 @@ public final class ChannelConsistencyValidator extends AbstractValidator {
                   "@kafkaTopicConfig for address '%s' is already declared on '%s'; declare it on "
                       + "at most one shape per topic.",
                   name, configured.get(0).shape().getId())));
-    }
-
-    Set<ShapeId> commandTypes = new LinkedHashSet<>();
-    for (Binding binding : bindings) {
-      binding
-          .shape()
-          .asOperationShape()
-          .flatMap(OperationShape::getInput)
-          .ifPresent(commandTypes::add);
-    }
-    if (commandTypes.size() > 1) {
-      events.add(
-          warning(
-              first.shape(),
-              String.format(
-                  "Address '%s' carries %d command types (%s), but bote does not specify how "
-                      + "command types are discriminated on a shared address. Consider one "
-                      + "address per command type.",
-                  name, commandTypes.size(), commandTypes)));
     }
   }
 }

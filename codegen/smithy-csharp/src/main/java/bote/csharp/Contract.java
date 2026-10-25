@@ -4,9 +4,7 @@ import bote.BoteIndex;
 import bote.BoteIndex.Address;
 import io.github.thomaslaich.nsmithy.csharp.codegen.CSharpNaming;
 import java.util.ArrayList;
-import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
 import software.amazon.smithy.codegen.core.CodegenException;
 import software.amazon.smithy.model.Model;
@@ -33,7 +31,13 @@ record Contract(ServiceShape service, List<Command> commands, List<Channel> chan
       String name,
       StructureShape input,
       Optional<StructureShape> output,
-      Address address) {}
+      Address address) {
+
+    /** The operation's name on the wire, in the {@code bote-type} header or stream field. */
+    String type() {
+      return operation.getId().getName();
+    }
+  }
 
   /**
    * A union of events the owner publishes to its address.
@@ -81,9 +85,7 @@ record Contract(ServiceShape service, List<Command> commands, List<Channel> chan
           new Channel(union, CSharpNaming.typeName(union.getId().getName()), events, address));
     }
 
-    Contract contract = new Contract(service, List.copyOf(commands), List.copyOf(channels));
-    contract.requireOneCommandPerAddress();
-    return contract;
+    return new Contract(service, List.copyOf(commands), List.copyOf(channels));
   }
 
   /** The C# name of the service. */
@@ -93,24 +95,6 @@ record Contract(ServiceShape service, List<Command> commands, List<Channel> chan
 
   boolean isEmpty() {
     return commands.isEmpty() && channels.isEmpty();
-  }
-
-  // The wire format names no command type, so a consumer can only decode one command per address.
-  private void requireOneCommandPerAddress() {
-    Map<String, Command> byAddress = new LinkedHashMap<>();
-    for (Command command : commands) {
-      Command other = byAddress.putIfAbsent(command.address().name(), command);
-      if (other != null) {
-        throw new CodegenException(
-            "bote C# code generation needs one command per address, but "
-                + other.operation().getId()
-                + " and "
-                + command.operation().getId()
-                + " share `"
-                + command.address().name()
-                + "`.");
-      }
-    }
   }
 
   // Code generation transforms give a Unit output a synthetic structure that remembers it.
