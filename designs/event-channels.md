@@ -113,8 +113,8 @@ address and publishes events to a channel's address.
 | Protocol | Address trait | Operation output |
 | --- | --- | --- |
 | `@kafkaJson`, `@kafkaAvro`, `@kafkaProtobuf` | `@kafkaTopic(name:, compacted:)` | None |
-| `@redisStreamsJson` | `@redisStream(key:, maxLen:)` | None, or a reply for request/reply |
-| `@redisPubSubJson` | `@redisChannel(name:)` | None |
+| `@redisStreamsJson`, `@redisStreamsCbor` | `@redisStream(key:, maxLen:)` | None, or a reply for request/reply |
+| `@redisPubSubJson`, `@redisPubSubCbor` | `@redisChannel(name:)` | None |
 
 ```smithy
 @trait(selector: ":is(operation, union)")
@@ -128,6 +128,26 @@ structure kafkaTopic {
 
 Request/reply uses `reply_to` and `correlation_id` transport metadata, a
 temporary Pub/Sub reply channel, and at-most-once reply delivery.
+
+### Encodings
+
+Each protocol trait fixes one wire format:
+
+| Broker | JSON | CBOR | Avro | Protobuf |
+| --- | --- | --- | --- | --- |
+| Kafka | `@kafkaJson` | | `@kafkaAvro` | `@kafkaProtobuf` |
+| Redis Streams | `@redisStreamsJson` | `@redisStreamsCbor` | | |
+| Redis Pub/Sub | `@redisPubSubJson` | `@redisPubSubCbor` | | |
+
+Kafka encodings follow the schema registry ecosystem. Redis has no schema
+registry convention, so Redis encodings follow Smithy's own JSON and CBOR
+mappings, the ones `restJson1` and `rpcv2Cbor` define, and need no
+per-member field numbers.
+
+A Redis value is a binary string and holds the encoded payload directly.
+Redis Streams entries carry a `content-type` field (`application/json` or
+`application/cbor`) next to the payload and the `reply_to` and
+`correlation_id` metadata.
 
 ### Channels
 
@@ -152,7 +172,7 @@ follows:
 - `@kafkaProtobuf`: the union is a `oneof`, and members carry
   `alloy.proto#protoIndex`.
 - `@kafkaAvro`: the union is an Avro union of records.
-- Redis protocols: `ENVELOPE`.
+- Redis protocols: `ENVELOPE`, a one-entry map in CBOR.
 
 The union is a plain tagged union, not `@streaming`. A single-event channel is
 a union with one member.
