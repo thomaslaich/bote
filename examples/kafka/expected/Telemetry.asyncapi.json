@@ -11,8 +11,8 @@
         "telemetry.readings": {
             "address": "telemetry.readings",
             "messages": {
-                "RecordReadingCommand": {
-                    "$ref": "#/components/messages/RecordReadingCommand"
+                "RecordReadingInput": {
+                    "$ref": "#/components/messages/RecordReadingInput"
                 }
             },
             "bindings": {
@@ -45,12 +45,12 @@
             },
             "messages": [
                 {
-                    "$ref": "#/channels/telemetry.readings/messages/RecordReadingCommand"
+                    "$ref": "#/channels/telemetry.readings/messages/RecordReadingInput"
                 }
             ],
             "summary": "Record a sensor reading."
         },
-        "ConsumeAlerts": {
+        "Alerts": {
             "action": "send",
             "channel": {
                 "$ref": "#/channels/telemetry.alerts"
@@ -60,19 +60,18 @@
                     "$ref": "#/channels/telemetry.alerts/messages/ThresholdExceeded"
                 }
             ],
-            "summary": "Consume threshold alerts derived from the readings."
+            "summary": "Threshold alerts derived from the readings."
         }
     },
     "components": {
         "messages": {
-            "RecordReadingCommand": {
-                "name": "RecordReadingCommand",
-                "title": "RecordReadingCommand",
+            "RecordReadingInput": {
+                "name": "RecordReadingInput",
+                "title": "RecordReadingInput",
                 "contentType": "application/protobuf",
                 "payload": {
-                    "$ref": "#/components/schemas/RecordReadingCommand"
+                    "$ref": "#/components/schemas/RecordReadingInput"
                 },
-                "summary": "Command to record a sensor reading.",
                 "bindings": {
                     "kafka": {
                         "key": {
@@ -101,23 +100,6 @@
             }
         },
         "schemas": {
-            "RecordReadingCommand": {
-                "type": "object",
-                "description": "Command to record a sensor reading.",
-                "properties": {
-                    "sensorId": {
-                        "type": "string"
-                    },
-                    "milliCelsius": {
-                        "type": "integer",
-                        "description": "Temperature in thousandths of a degree Celsius."
-                    },
-                    "recordedAt": {
-                        "type": "string",
-                        "format": "date-time"
-                    }
-                }
-            },
             "ThresholdExceeded": {
                 "type": "object",
                 "description": "A sensor reading crossed its configured threshold.",
@@ -132,6 +114,22 @@
                         "type": "integer"
                     },
                     "observedAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    }
+                }
+            },
+            "RecordReadingInput": {
+                "type": "object",
+                "properties": {
+                    "sensorId": {
+                        "type": "string"
+                    },
+                    "milliCelsius": {
+                        "type": "integer",
+                        "description": "Temperature in thousandths of a degree Celsius."
+                    },
+                    "recordedAt": {
                         "type": "string",
                         "format": "date-time"
                     }

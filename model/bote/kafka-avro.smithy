@@ -12,23 +12,15 @@ use smithy.api#protocolDefinition
 /// at runtime — the registry URL and credentials are not part of the
 /// contract and must not appear in the model.
 ///
-/// Operations in a service annotated with @kafkaAvro must use @kafkaProduce
-/// or @kafkaConsume, which carry the topic.
+/// Operations and channels in a service annotated with @kafkaAvro are bound
+/// to topics with @kafkaTopic.
 ///
 /// Event discrimination is handled by the wire format itself: the schema ID
 /// prefix identifies the writer schema, and thus the event type, of every
 /// message. Multi-event channels require a subjectNamingStrategy that permits
 /// multiple schemas per topic (RECORD_NAME or TOPIC_RECORD_NAME).
 @protocolDefinition(
-    traits: [
-        bote#kafkaProduce
-        bote#kafkaConsume
-        bote#event
-        bote#command
-        bote#kafkaKey
-        bote#kafkaHeader
-        bote#avroCompatibility
-    ]
+    traits: [bote#kafkaTopic, bote#channels, bote#event, bote#kafkaKey, bote#kafkaHeader, bote#avroCompatibility]
 )
 @trait(selector: "service")
 structure kafkaAvro {
@@ -72,17 +64,17 @@ enum SubjectNamingStrategy {
     TOPIC_RECORD_NAME
 }
 
-/// Declares the Avro schema compatibility mode for an operation's topic.
+/// Declares the Avro schema compatibility mode for a topic.
 ///
 /// Specifies which schema changes are permitted when a new version of the
 /// payload shape is published. Smithy validators can use this annotation to
 /// enforce that shape changes respect the declared compatibility contract —
 /// catching breaking changes at model-build time rather than at runtime.
 ///
-/// Applied at operation level to set the mode for a specific topic.
-/// Applied at service level to set the default for all operations in the
-/// service; an operation-level annotation takes precedence.
-@trait(selector: ":is(service, operation)")
+/// Applied to an operation or channel to set the mode for its topic.
+/// Applied at service level to set the default for all topics of the
+/// service; an operation- or channel-level annotation takes precedence.
+@trait(selector: ":is(service, operation, union)")
 structure avroCompatibility {
     @required
     mode: CompatibilityMode

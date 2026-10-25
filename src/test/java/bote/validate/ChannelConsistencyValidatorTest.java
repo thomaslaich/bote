@@ -29,8 +29,7 @@ class ChannelConsistencyValidatorTest {
         $version: "2"
         namespace test
         use bote#kafkaJson
-        use bote#kafkaProduce
-        use bote#command
+        use bote#kafkaTopic
 
         @kafkaJson
         service A { operations: [PubA] }
@@ -38,80 +37,77 @@ class ChannelConsistencyValidatorTest {
         @kafkaJson
         service B { operations: [PubB] }
 
-        @kafkaProduce(topic: "orders")
-        operation PubA { input: Payload }
+        @kafkaTopic(name: "orders")
+        operation PubA { input := { value: String } }
 
-        @kafkaProduce(topic: "orders")
-        operation PubB { input: Payload }
-
-        @command
-        structure Payload { value: String }
+        @kafkaTopic(name: "orders")
+        operation PubB { input := { value: String } }
         """;
     assertTrue(hasEvent(model, Severity.ERROR, "exactly one owning service"));
   }
 
   @Test
-  void divergingChannelValuesIsError() {
+  void channelAddressUsedByAnOperationIsError() {
     String model =
         """
         $version: "2"
         namespace test
-        use bote#redisStreamsJson
-        use bote#redisStreamAdd
-        use bote#redisStreamRead
-        use bote#command
+        use bote#channels
         use bote#event
+        use bote#redisStream
+        use bote#redisStreamsJson
 
         @redisStreamsJson
-        service Chat { operations: [Post, Consume] }
+        @channels([ChatEvents])
+        service Chat { operations: [Post] }
 
-        @redisStreamAdd(stream: "chat", maxLen: 10000)
-        operation Post { input: PostMessage }
+        @redisStream(key: "chat")
+        operation Post { input := { value: String } }
 
-        @redisStreamRead(stream: "chat", maxLen: 500)
-        operation Consume { output := { events: Stream } }
-
-        @streaming
-        union Stream { posted: Posted }
-
-        @command
-        structure PostMessage { value: String }
+        @redisStream(key: "chat")
+        union ChatEvents { posted: Posted }
 
         @event
         structure Posted { value: String }
+        """;
+    assertTrue(hasEvent(model, Severity.ERROR, "carries only that channel's events"));
+  }
+
+  @Test
+  void divergingAddressValuesIsError() {
+    String model =
+        """
+        $version: "2"
+        namespace test
+        use bote#redisStream
+        use bote#redisStreamsJson
+
+        @redisStreamsJson
+        service Chat { operations: [Post, Edit] }
+
+        @redisStream(key: "chat", maxLen: 10000)
+        operation Post { input := { value: String } }
+
+        @redisStream(key: "chat", maxLen: 500)
+        operation Edit { input := { value: String } }
         """;
     assertTrue(hasEvent(model, Severity.ERROR, "must be identical"));
   }
 
   @Test
-  void agreedChannelValuesAreValid() {
+  void agreedAddressValuesAreValid() {
     String model =
         """
         $version: "2"
         namespace test
+        use bote#redisStream
         use bote#redisStreamsJson
-        use bote#redisStreamAdd
-        use bote#redisStreamRead
-        use bote#command
-        use bote#event
 
         @redisStreamsJson
-        service Chat { operations: [Post, Consume] }
+        service Chat { operations: [Post] }
 
-        @redisStreamAdd(stream: "chat", maxLen: 10000)
-        operation Post { input: PostMessage }
-
-        @redisStreamRead(stream: "chat", maxLen: 10000)
-        operation Consume { output := { events: Stream } }
-
-        @streaming
-        union Stream { posted: Posted }
-
-        @command
-        structure PostMessage { value: String }
-
-        @event
-        structure Posted { value: String }
+        @redisStream(key: "chat", maxLen: 10000)
+        operation Post { input := { value: String } }
         """;
     assertTrue(validate(model, Severity.ERROR).isEmpty());
   }
@@ -123,33 +119,21 @@ class ChannelConsistencyValidatorTest {
         $version: "2"
         namespace test
         use bote#kafkaJson
-        use bote#kafkaProduce
-        use bote#kafkaConsume
+        use bote#kafkaTopic
         use bote.infra#kafkaTopicConfig
-        use bote#command
-        use bote#event
 
         @kafkaJson
-        service Orders { operations: [Pub, Consume] }
+        service Orders { operations: [Submit, Cancel] }
 
-        @kafkaProduce(topic: "orders")
+        @kafkaTopic(name: "orders")
         @kafkaTopicConfig(partitions: 6)
-        operation Pub { input: Payload }
+        operation Submit { input := { value: String } }
 
-        @kafkaConsume(topic: "orders")
+        @kafkaTopic(name: "orders")
         @kafkaTopicConfig(partitions: 6)
-        operation Consume { output := { events: Stream } }
-
-        @streaming
-        union Stream { placed: Placed }
-
-        @command
-        structure Payload { value: String }
-
-        @event
-        structure Placed { value: String }
+        operation Cancel { input := { value: String } }
         """;
-    assertTrue(hasEvent(model, Severity.ERROR, "at most one operation per topic"));
+    assertTrue(hasEvent(model, Severity.ERROR, "at most one shape per topic"));
   }
 
   @Test
@@ -159,23 +143,16 @@ class ChannelConsistencyValidatorTest {
         $version: "2"
         namespace test
         use bote#kafkaJson
-        use bote#kafkaProduce
-        use bote#command
+        use bote#kafkaTopic
 
         @kafkaJson
         service Orders { operations: [Submit, Cancel] }
 
-        @kafkaProduce(topic: "orders.commands")
-        operation Submit { input: SubmitOrder }
+        @kafkaTopic(name: "orders.commands")
+        operation Submit { input := { value: String } }
 
-        @kafkaProduce(topic: "orders.commands")
-        operation Cancel { input: CancelOrder }
-
-        @command
-        structure SubmitOrder { value: String }
-
-        @command
-        structure CancelOrder { value: String }
+        @kafkaTopic(name: "orders.commands")
+        operation Cancel { input := { value: String } }
         """;
     assertTrue(hasEvent(model, Severity.WARNING, "command types"));
     assertTrue(validate(model, Severity.ERROR).isEmpty());

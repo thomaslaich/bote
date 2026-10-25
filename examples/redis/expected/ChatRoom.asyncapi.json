@@ -8,29 +8,34 @@
     },
     "defaultContentType": "application/json",
     "channels": {
-        "chat:messages": {
-            "address": "chat:messages",
+        "chat:posts": {
+            "address": "chat:posts",
             "messages": {
-                "PostChatMessage": {
-                    "$ref": "#/components/messages/PostChatMessage"
-                },
-                "ChatMessagePosted": {
-                    "$ref": "#/components/messages/ChatMessagePosted"
+                "PostMessageInput": {
+                    "$ref": "#/components/messages/PostMessageInput"
                 }
             }
         },
         "chat:room-status": {
             "address": "chat:room-status",
             "messages": {
-                "GetRoomStatusRequest": {
-                    "$ref": "#/components/messages/GetRoomStatusRequest"
+                "GetRoomStatusInput": {
+                    "$ref": "#/components/messages/GetRoomStatusInput"
+                }
+            }
+        },
+        "chat:messages": {
+            "address": "chat:messages",
+            "messages": {
+                "ChatMessagePosted": {
+                    "$ref": "#/components/messages/ChatMessagePosted"
                 }
             }
         },
         "GetRoomStatusReply": {
             "messages": {
-                "GetRoomStatusReply": {
-                    "$ref": "#/components/messages/GetRoomStatusReply"
+                "GetRoomStatusOutput": {
+                    "$ref": "#/components/messages/GetRoomStatusOutput"
                 }
             }
         }
@@ -39,14 +44,14 @@
         "PostMessage": {
             "action": "receive",
             "channel": {
-                "$ref": "#/channels/chat:messages"
+                "$ref": "#/channels/chat:posts"
             },
             "messages": [
                 {
-                    "$ref": "#/channels/chat:messages/messages/PostChatMessage"
+                    "$ref": "#/channels/chat:posts/messages/PostMessageInput"
                 }
             ],
-            "summary": "Post a chat message to the room stream."
+            "summary": "Post a chat message to the room."
         },
         "GetRoomStatus": {
             "action": "receive",
@@ -55,7 +60,7 @@
             },
             "messages": [
                 {
-                    "$ref": "#/channels/chat:room-status/messages/GetRoomStatusRequest"
+                    "$ref": "#/channels/chat:room-status/messages/GetRoomStatusInput"
                 }
             ],
             "reply": {
@@ -67,13 +72,13 @@
                 },
                 "messages": [
                     {
-                        "$ref": "#/channels/GetRoomStatusReply/messages/GetRoomStatusReply"
+                        "$ref": "#/channels/GetRoomStatusReply/messages/GetRoomStatusOutput"
                     }
                 ]
             },
             "summary": "Get the current status of a room through Redis Streams request/reply."
         },
-        "ReadMessages": {
+        "ChatMessages": {
             "action": "send",
             "channel": {
                 "$ref": "#/channels/chat:messages"
@@ -83,28 +88,26 @@
                     "$ref": "#/channels/chat:messages/messages/ChatMessagePosted"
                 }
             ],
-            "summary": "Read posted chat messages from the room stream."
+            "summary": "Chat messages posted to the room."
         }
     },
     "components": {
         "messages": {
-            "PostChatMessage": {
-                "name": "PostChatMessage",
-                "title": "PostChatMessage",
+            "PostMessageInput": {
+                "name": "PostMessageInput",
+                "title": "PostMessageInput",
                 "contentType": "application/json",
                 "payload": {
-                    "$ref": "#/components/schemas/PostChatMessage"
-                },
-                "summary": "Command to post a chat message to a room."
+                    "$ref": "#/components/schemas/PostMessageInput"
+                }
             },
-            "GetRoomStatusRequest": {
-                "name": "GetRoomStatusRequest",
-                "title": "GetRoomStatusRequest",
+            "GetRoomStatusInput": {
+                "name": "GetRoomStatusInput",
+                "title": "GetRoomStatusInput",
                 "contentType": "application/json",
                 "payload": {
-                    "$ref": "#/components/schemas/GetRoomStatusRequest"
+                    "$ref": "#/components/schemas/GetRoomStatusInput"
                 },
-                "summary": "Request the current status of a room.",
                 "headers": {
                     "type": "object",
                     "properties": {
@@ -124,14 +127,13 @@
                     "location": "$message.header#/correlation_id"
                 }
             },
-            "GetRoomStatusReply": {
-                "name": "GetRoomStatusReply",
-                "title": "GetRoomStatusReply",
+            "GetRoomStatusOutput": {
+                "name": "GetRoomStatusOutput",
+                "title": "GetRoomStatusOutput",
                 "contentType": "application/json",
                 "payload": {
-                    "$ref": "#/components/schemas/GetRoomStatusReply"
+                    "$ref": "#/components/schemas/GetRoomStatusOutput"
                 },
-                "summary": "The current status of a room.",
                 "headers": {
                     "type": "object",
                     "properties": {
@@ -187,9 +189,27 @@
                     }
                 }
             },
-            "PostChatMessage": {
+            "GetRoomStatusOutput": {
                 "type": "object",
-                "description": "Command to post a chat message to a room.",
+                "properties": {
+                    "roomId": {
+                        "type": "string"
+                    },
+                    "activeUsers": {
+                        "type": "integer"
+                    }
+                }
+            },
+            "GetRoomStatusInput": {
+                "type": "object",
+                "properties": {
+                    "roomId": {
+                        "type": "string"
+                    }
+                }
+            },
+            "PostMessageInput": {
+                "type": "object",
                 "properties": {
                     "roomId": {
                         "type": "string"
@@ -201,27 +221,6 @@
                         "type": "string",
                         "maxLength": 4000,
                         "minLength": 1
-                    }
-                }
-            },
-            "GetRoomStatusReply": {
-                "type": "object",
-                "description": "The current status of a room.",
-                "properties": {
-                    "roomId": {
-                        "type": "string"
-                    },
-                    "activeUsers": {
-                        "type": "integer"
-                    }
-                }
-            },
-            "GetRoomStatusRequest": {
-                "type": "object",
-                "description": "Request the current status of a room.",
-                "properties": {
-                    "roomId": {
-                        "type": "string"
                     }
                 }
             }

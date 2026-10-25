@@ -6,38 +6,49 @@ $version: "2"
 namespace examples.kafka.streetlights
 
 use bote#avroCompatibility
-use bote#command
+use bote#channels
 use bote#event
 use bote#kafkaAvro
-use bote#kafkaConsume
 use bote#kafkaHeader
 use bote#kafkaKey
-use bote#kafkaProduce
+use bote#kafkaTopic
 
-/// The streetlight device API: clients consume lighting events and produce dim commands.
+/// The streetlight device API: clients consume lighting events and send dim commands.
 @title("Streetlight Device API")
 @avroCompatibility(mode: "BACKWARD")
 @kafkaAvro
+@channels([LightingEvents])
 service StreetlightDevice {
     version: "1.0.0"
     operations: [
-        ConsumeLightingEvents
         DimLight
     ]
 }
 
-/// Consume environmental lighting events reported by streetlights.
-@kafkaConsume(topic: "smartylighting.streetlights.lighting.measured")
-operation ConsumeLightingEvents {
-    output := {
-        events: LightMeasuredStream
-    }
-}
-
 /// Dim a streetlight.
-@kafkaProduce(topic: "smartylighting.streetlights.action.dim")
+@kafkaTopic(name: "smartylighting.streetlights.action.dim")
 operation DimLight {
     input: DimLightCommand
+}
+
+/// Command a particular streetlight to dim the lights.
+@input
+structure DimLightCommand {
+    @kafkaKey
+    streetlightId: String
+
+    /// Percentage to which the light should be dimmed to.
+    @range(min: 0, max: 100)
+    percentage: Integer
+
+    /// Date and time when the message was sent.
+    sentAt: Timestamp
+}
+
+/// Environmental lighting events reported by streetlights.
+@kafkaTopic(name: "smartylighting.streetlights.lighting.measured")
+union LightingEvents {
+    lightMeasured: LightMeasured
 }
 
 /// Light intensity reported by a streetlight.
@@ -57,24 +68,4 @@ structure LightMeasured {
 
     /// Date and time when the message was sent.
     sentAt: Timestamp
-}
-
-/// Command a particular streetlight to dim the lights.
-@command
-structure DimLightCommand {
-    @kafkaKey
-    streetlightId: String
-
-    /// Percentage to which the light should be dimmed to.
-    @range(min: 0, max: 100)
-    percentage: Integer
-
-    /// Date and time when the message was sent.
-    sentAt: Timestamp
-}
-
-/// The client's subscription view of device lighting events.
-@streaming
-union LightMeasuredStream {
-    lightMeasured: LightMeasured
 }

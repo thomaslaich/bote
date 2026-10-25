@@ -23,23 +23,27 @@ class AsyncApiPluginTest {
       $version: "2"
       namespace test
 use bote#kafkaJson
-use bote#kafkaProduce
 use bote#kafkaKey
-use bote#command
+use bote#kafkaTopic
       @kafkaJson
       service A { operations: [PubA] }
 
 @kafkaJson
       service B { operations: [PubB] }
 
-@kafkaProduce(topic: "a")
-      operation PubA { input: Payload }
+@kafkaTopic(name: "a")
+      operation PubA { input: PayloadA }
 
-@kafkaProduce(topic: "b")
-      operation PubB { input: Payload }
+@kafkaTopic(name: "b")
+      operation PubB { input: PayloadB }
 
-@command
-      structure Payload {
+      @input
+      structure PayloadA {
+@kafkaKey
+          id: String
+      }
+      @input
+      structure PayloadB {
 @kafkaKey
           id: String
       }

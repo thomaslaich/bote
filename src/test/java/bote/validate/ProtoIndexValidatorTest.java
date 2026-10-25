@@ -25,23 +25,20 @@ class ProtoIndexValidatorTest {
         $version: "2"
         namespace test
         use alloy.proto#protoIndex
-        use bote#kafkaProtobuf
-        use bote#kafkaProduce
-        use bote#kafkaConsume
-        use bote#kafkaHeader
-        use bote#command
+        use bote#channels
         use bote#event
+        use bote#kafkaHeader
+        use bote#kafkaProtobuf
+        use bote#kafkaTopic
 
         @kafkaProtobuf
-        service Telemetry { operations: [Record, ConsumeAlerts] }
+        @channels([Alerts])
+        service Telemetry { operations: [Record] }
 
-        @kafkaProduce(topic: "readings")
+        @kafkaTopic(name: "readings")
         operation Record { input: Reading }
 
-        @kafkaConsume(topic: "alerts")
-        operation ConsumeAlerts { output := { alerts: AlertStream } }
-
-        @command
+        @input
         structure Reading {
             @protoIndex(1)
             sensorId: String
@@ -61,8 +58,8 @@ class ProtoIndexValidatorTest {
             sensorId: String
         }
 
-        @streaming
-        union AlertStream {
+        @kafkaTopic(name: "alerts")
+        union Alerts {
             @protoIndex(1)
             alert: Alert
         }
@@ -79,16 +76,15 @@ class ProtoIndexValidatorTest {
         namespace test
         use alloy.proto#protoIndex
         use bote#kafkaProtobuf
-        use bote#kafkaProduce
-        use bote#command
+        use bote#kafkaTopic
 
         @kafkaProtobuf
         service Telemetry { operations: [Record] }
 
-        @kafkaProduce(topic: "readings")
+        @kafkaTopic(name: "readings")
         operation Record { input: Reading }
 
-        @command
+        @input
         structure Reading {
             @protoIndex(1)
             sensorId: String
@@ -100,22 +96,50 @@ class ProtoIndexValidatorTest {
   }
 
   @Test
+  void missingProtoIndexOnChannelMemberIsError() {
+    String model =
+        """
+        $version: "2"
+        namespace test
+        use alloy.proto#protoIndex
+        use bote#channels
+        use bote#event
+        use bote#kafkaProtobuf
+        use bote#kafkaTopic
+
+        @kafkaProtobuf
+        @channels([Alerts])
+        service Telemetry {}
+
+        @kafkaTopic(name: "alerts")
+        union Alerts { alert: Alert }
+
+        @event
+        structure Alert {
+            @protoIndex(1)
+            sensorId: String
+        }
+        """;
+    assertTrue(
+        validate(model).stream().anyMatch(e -> e.getMessage().contains("test#Alerts$alert")));
+  }
+
+  @Test
   void jsonProtocolPayloadsNeedNoProtoIndex() {
     String model =
         """
         $version: "2"
         namespace test
         use bote#kafkaJson
-        use bote#kafkaProduce
-        use bote#command
+        use bote#kafkaTopic
 
         @kafkaJson
         service Orders { operations: [Submit] }
 
-        @kafkaProduce(topic: "orders")
+        @kafkaTopic(name: "orders")
         operation Submit { input: SubmitOrder }
 
-        @command
+        @input
         structure SubmitOrder { orderId: String }
         """;
     assertTrue(validate(model).isEmpty());

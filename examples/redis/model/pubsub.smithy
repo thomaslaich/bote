@@ -1,44 +1,38 @@
 $version: "2"
 
-// Redis Pub/Sub example: PUBLISH and SUBSCRIBE capabilities on one channel.
+// Redis Pub/Sub example: the service receives presence commands on one
+// Pub/Sub channel and publishes presence changes on another.
 namespace presence
 
-use bote#command
+use bote#channels
 use bote#event
+use bote#redisChannel
 use bote#redisPubSubJson
-use bote#redisPublish
-use bote#redisSubscribe
 
 /// Presence API: clients set their presence and subscribe to presence changes.
 @title("Presence API")
 @redisPubSubJson
+@channels([PresenceUpdates])
 service Presence {
     version: "1.0.0"
     operations: [
         SetPresence
-        SubscribeToPresence
     ]
 }
 
 /// Set a user's presence.
-@redisPublish(channel: "presence")
+@redisChannel(name: "presence.commands")
 operation SetPresence {
-    input: SetPresenceCommand
-}
-
-/// Subscribe to presence changes on the presence channel.
-@redisSubscribe(channel: "presence")
-operation SubscribeToPresence {
-    output := {
-        updates: PresenceSubscription
+    input := {
+        userId: String
+        status: PresenceStatus
     }
 }
 
-/// Command to set a user's presence.
-@command
-structure SetPresenceCommand {
-    userId: String
-    status: PresenceStatus
+/// Presence changes.
+@redisChannel(name: "presence")
+union PresenceUpdates {
+    presenceChanged: PresenceChanged
 }
 
 /// A user's presence changed.
@@ -53,10 +47,4 @@ enum PresenceStatus {
     ONLINE
     AWAY
     OFFLINE
-}
-
-/// The client's subscription view of presence changes.
-@streaming
-union PresenceSubscription {
-    presenceChanged: PresenceChanged
 }

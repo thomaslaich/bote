@@ -10,15 +10,15 @@ use smithy.api#protocolDefinition
 /// generators that consume this protocol. Proto field numbers come from
 /// alloy.proto#protoIndex (Alloy trait library,
 /// com.disneystreaming.alloy:alloy-core): every member of every payload
-/// structure and streaming union must carry an explicit @protoIndex
+/// structure and channel union must carry an explicit @protoIndex
 /// (validator-enforced), because implicit numbering breaks the wire format
 /// when members are reordered or removed.
 ///
 /// Wire rules:
 ///
-/// - A @command message value is the protobuf serialization of its
+/// - A command message value is the protobuf serialization of its
 ///   structure's message.
-/// - An @event message value is the protobuf serialization of the @streaming
+/// - An @event message value is the protobuf serialization of the channel
 ///   union's message: the union maps to a proto message with a oneof whose
 ///   field numbers come from the union members' @protoIndex. The oneof case
 ///   is the event discriminator; no separate mechanism is needed.
@@ -36,13 +36,12 @@ use smithy.api#protocolDefinition
 /// the registry URL and credentials are runtime configuration and must not
 /// appear in the model.
 ///
-/// Operations must use @kafkaProduce or @kafkaConsume, which carry the topic.
+/// Operations and channels are bound to topics with @kafkaTopic.
 @protocolDefinition(
     traits: [
-        bote#kafkaProduce
-        bote#kafkaConsume
+        bote#kafkaTopic
+        bote#channels
         bote#event
-        bote#command
         bote#kafkaKey
         bote#kafkaHeader
         alloy.proto#protoIndex

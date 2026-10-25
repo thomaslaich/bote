@@ -1,5 +1,6 @@
 package bote.validate;
 
+import bote.BoteIndex;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
@@ -11,6 +12,7 @@ import software.amazon.smithy.model.shapes.OperationShape;
 import software.amazon.smithy.model.shapes.Shape;
 import software.amazon.smithy.model.shapes.ShapeId;
 import software.amazon.smithy.model.shapes.StructureShape;
+import software.amazon.smithy.model.shapes.UnionShape;
 import software.amazon.smithy.model.validation.AbstractValidator;
 import software.amazon.smithy.model.validation.ValidationEvent;
 
@@ -20,12 +22,10 @@ import software.amazon.smithy.model.validation.ValidationEvent;
  * <p>The message key uniquely identifies a record within a topic and determines which partition it
  * is routed to. Having more than one key member is ambiguous and is therefore an error.
  *
- * <p>Only structures used as inputs of @kafkaProduce operations are checked.
+ * <p>The structures checked are the inputs of {@code @kafkaTopic} operations and the events of
+ * {@code @kafkaTopic} channels.
  */
 public final class KafkaKeyValidator extends AbstractValidator {
-
-  private static final ShapeId KAFKA_PRODUCE = ShapeId.from("bote#kafkaProduce");
-  private static final ShapeId KAFKA_KEY = ShapeId.from("bote#kafkaKey");
 
   @Override
   public List<ValidationEvent> validate(Model model) {
@@ -34,8 +34,13 @@ public final class KafkaKeyValidator extends AbstractValidator {
     Set<ShapeId> messageStructures = new HashSet<>();
 
     for (OperationShape operation : model.getOperationShapes()) {
-      if (operation.hasTrait(KAFKA_PRODUCE)) {
+      if (operation.hasTrait(BoteIndex.KAFKA_TOPIC)) {
         operation.getInput().ifPresent(messageStructures::add);
+      }
+    }
+    for (UnionShape channel : model.getUnionShapes()) {
+      if (channel.hasTrait(BoteIndex.KAFKA_TOPIC)) {
+        channel.getAllMembers().values().forEach(m -> messageStructures.add(m.getTarget()));
       }
     }
 
@@ -52,7 +57,7 @@ public final class KafkaKeyValidator extends AbstractValidator {
   private void validateStructure(StructureShape structure, List<ValidationEvent> events) {
     List<MemberShape> keyMembers =
         structure.getAllMembers().values().stream()
-            .filter(member -> member.hasTrait(KAFKA_KEY))
+            .filter(member -> member.hasTrait(BoteIndex.KAFKA_KEY))
             .collect(Collectors.toList());
 
     if (keyMembers.size() > 1) {
