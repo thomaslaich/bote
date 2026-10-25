@@ -31,13 +31,28 @@ jobs:
           name: devenv
       - name: Install devenv
         run: nix profile add nixpkgs#devenv
-      - name: Check formatting, build, validate models, run tests, verify golden files
+      - name: Check formatting
+        run: devenv shell -- just check-format
+      - name: Build, validate models, run tests, verify golden files
         run: devenv test
+      - name: Pack
+        # Runs before any publish step: a Maven Central coordinate cannot be replaced or withdrawn,
+        # so nothing irreversible may happen until the packages exist.
+        run: devenv shell -- just pack "${{ steps.version.outputs.version }}"
+      - name: Upload packages
+        uses: actions/upload-artifact@v4
+        with:
+          name: nuget-packages
+          path: dotnet/artifacts/packages/*.nupkg
+          if-no-files-found: error
       - name: Publish to Maven Central
         env:
           ORG_GRADLE_PROJECT_mavenCentralUsername: ${{ secrets.MAVEN_CENTRAL_USERNAME }}
           ORG_GRADLE_PROJECT_mavenCentralPassword: ${{ secrets.MAVEN_CENTRAL_PASSWORD }}
           ORG_GRADLE_PROJECT_signingInMemoryKey: ${{ secrets.MAVEN_GPG_PRIVATE_KEY }}
           ORG_GRADLE_PROJECT_signingInMemoryKeyPassword: ${{ secrets.MAVEN_GPG_PASSPHRASE }}
+        run: devenv shell -- just publish-maven "${{ steps.version.outputs.version }}"
+      - name: Publish to NuGet
+        env:
           NUGET_API_KEY: ${{ secrets.NUGET_API_KEY }}
-        run: devenv shell -- just publish "${{ steps.version.outputs.version }}"
+        run: devenv shell -- just publish-nuget "${{ steps.version.outputs.version }}"

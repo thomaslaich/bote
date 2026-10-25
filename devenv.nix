@@ -16,12 +16,12 @@
     pkgs.redis
   ];
 
-  # `devenv test` runs the CI pipeline with a throwaway Redis for the Redis integration tests.
+  # `devenv test` builds and tests everything with a throwaway Redis for the Redis integration tests.
   enterTest = ''
     redis-server --port 6399 --save "" --appendonly no --daemonize yes
     trap 'redis-cli -p 6399 shutdown nosave' EXIT
     wait_for_port 6399
-    BOTE_TEST_REDIS=localhost:6399 just ci
+    BOTE_TEST_REDIS=localhost:6399 just verify
   '';
 
   env.DOTNET_CLI_TELEMETRY_OPTOUT = "1";

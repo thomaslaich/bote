@@ -49,8 +49,11 @@ verify-golden: build
     diff -ru examples/kafka/expected examples/kafka/build/smithyprojections/kafka/source/asyncapi
     diff -ru examples/redis/expected examples/redis/build/smithyprojections/redis/source/asyncapi
 
-# Everything CI and the release workflow run before publishing
-ci: check-format build verify-golden dotnet-test
+# Build, test, and verify the golden files; `devenv test` runs this with a Redis
+verify: build verify-golden dotnet-test
+
+# Everything CI runs
+ci: check-format verify
 
 # Publish bote, smithy-asyncapi and smithy-csharp-codegen to the local Maven repo (~/.m2) for local consumers
 publish-local:
@@ -60,13 +63,18 @@ publish-local:
 pack VERSION="0.0.0-SNAPSHOT":
     for project in Bote Bote.Kafka Bote.Redis; do dotnet pack dotnet/src/$project -c Release -p:Version={{ VERSION }}; done
 
-# Publish the Java artifacts to Maven Central via the Sonatype Central Portal and the C# runtime to
-# NuGet. Used by the release workflow; expects MAVEN_CENTRAL_USERNAME / MAVEN_CENTRAL_PASSWORD,
-# ORG_GRADLE_PROJECT_signingInMemoryKey / ORG_GRADLE_PROJECT_signingInMemoryKeyPassword and
-# NUGET_API_KEY to be set in the environment.
-publish VERSION: (pack VERSION)
+# Publish the Java artifacts to Maven Central via the Sonatype Central Portal. Used by the release
+# workflow; expects MAVEN_CENTRAL_USERNAME / MAVEN_CENTRAL_PASSWORD and
+# ORG_GRADLE_PROJECT_signingInMemoryKey / ORG_GRADLE_PROJECT_signingInMemoryKeyPassword to be set
+# in the environment.
+publish-maven VERSION:
     gradle -Pversion={{ VERSION }} :publishAndReleaseToMavenCentral :codegen:smithy-asyncapi:publishAndReleaseToMavenCentral :codegen:smithy-csharp:publishAndReleaseToMavenCentral
-    dotnet nuget push "dotnet/artifacts/packages/*.{{ VERSION }}.nupkg" --api-key "$NUGET_API_KEY" --source https://api.nuget.org/v3/index.json
+
+# Push the packed C# runtime packages to NuGet. Used by the release workflow; expects NUGET_API_KEY
+# to be set in the environment. Already published packages are skipped, so a failed run can be
+# repeated.
+publish-nuget VERSION:
+    dotnet nuget push "dotnet/artifacts/packages/*.{{ VERSION }}.nupkg" --api-key "$NUGET_API_KEY" --source https://api.nuget.org/v3/index.json --skip-duplicate
 
 # Clean build outputs
 clean:
