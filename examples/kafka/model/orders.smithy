@@ -25,23 +25,19 @@ service OrderService {
 /// Submit a new order for processing.
 @kafkaTopic(name: "orders.commands")
 operation SubmitOrder {
-    input: SubmitOrderCommand
-}
+    input := {
+        @kafkaKey
+        orderId: String
 
-/// Command to submit a new order.
-@input
-structure SubmitOrderCommand {
-    @kafkaKey
-    orderId: String
+        /// Propagates distributed trace context via a Kafka header.
+        @kafkaHeader(name: "x-trace-id")
+        traceId: String
 
-    /// Propagates distributed trace context via a Kafka header.
-    @kafkaHeader(name: "x-trace-id")
-    traceId: String
+        customerId: String
 
-    customerId: String
-
-    @range(min: 0)
-    totalCents: Integer
+        @range(min: 0)
+        totalCents: Integer
+    }
 }
 
 /// Order lifecycle events.

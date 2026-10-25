@@ -27,22 +27,18 @@ service Telemetry {
 /// Record a sensor reading.
 @kafkaTopic(name: "telemetry.readings")
 operation RecordReading {
-    input: RecordReadingCommand
-}
+    input := {
+        @protoIndex(1)
+        @kafkaKey
+        sensorId: String
 
-/// Command to record a sensor reading.
-@input
-structure RecordReadingCommand {
-    @protoIndex(1)
-    @kafkaKey
-    sensorId: String
+        /// Temperature in thousandths of a degree Celsius.
+        @protoIndex(2)
+        milliCelsius: Integer
 
-    /// Temperature in thousandths of a degree Celsius.
-    @protoIndex(2)
-    milliCelsius: Integer
-
-    @protoIndex(3)
-    recordedAt: Timestamp
+        @protoIndex(3)
+        recordedAt: Timestamp
+    }
 }
 
 /// Threshold alerts derived from the readings.

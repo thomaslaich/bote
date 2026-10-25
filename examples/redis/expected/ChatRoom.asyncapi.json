@@ -11,16 +11,16 @@
         "chat:posts": {
             "address": "chat:posts",
             "messages": {
-                "PostMessageCommand": {
-                    "$ref": "#/components/messages/PostMessageCommand"
+                "PostMessageInput": {
+                    "$ref": "#/components/messages/PostMessageInput"
                 }
             }
         },
         "chat:room-status": {
             "address": "chat:room-status",
             "messages": {
-                "GetRoomStatusRequest": {
-                    "$ref": "#/components/messages/GetRoomStatusRequest"
+                "GetRoomStatusInput": {
+                    "$ref": "#/components/messages/GetRoomStatusInput"
                 }
             }
         },
@@ -34,8 +34,8 @@
         },
         "GetRoomStatusReply": {
             "messages": {
-                "GetRoomStatusReply": {
-                    "$ref": "#/components/messages/GetRoomStatusReply"
+                "GetRoomStatusOutput": {
+                    "$ref": "#/components/messages/GetRoomStatusOutput"
                 }
             }
         }
@@ -48,7 +48,7 @@
             },
             "messages": [
                 {
-                    "$ref": "#/channels/chat:posts/messages/PostMessageCommand"
+                    "$ref": "#/channels/chat:posts/messages/PostMessageInput"
                 }
             ],
             "summary": "Post a chat message to the room."
@@ -60,7 +60,7 @@
             },
             "messages": [
                 {
-                    "$ref": "#/channels/chat:room-status/messages/GetRoomStatusRequest"
+                    "$ref": "#/channels/chat:room-status/messages/GetRoomStatusInput"
                 }
             ],
             "reply": {
@@ -72,7 +72,7 @@
                 },
                 "messages": [
                     {
-                        "$ref": "#/channels/GetRoomStatusReply/messages/GetRoomStatusReply"
+                        "$ref": "#/channels/GetRoomStatusReply/messages/GetRoomStatusOutput"
                     }
                 ]
             },
@@ -93,23 +93,21 @@
     },
     "components": {
         "messages": {
-            "PostMessageCommand": {
-                "name": "PostMessageCommand",
-                "title": "PostMessageCommand",
+            "PostMessageInput": {
+                "name": "PostMessageInput",
+                "title": "PostMessageInput",
                 "contentType": "application/json",
                 "payload": {
-                    "$ref": "#/components/schemas/PostMessageCommand"
-                },
-                "summary": "Command to post a chat message to a room."
+                    "$ref": "#/components/schemas/PostMessageInput"
+                }
             },
-            "GetRoomStatusRequest": {
-                "name": "GetRoomStatusRequest",
-                "title": "GetRoomStatusRequest",
+            "GetRoomStatusInput": {
+                "name": "GetRoomStatusInput",
+                "title": "GetRoomStatusInput",
                 "contentType": "application/json",
                 "payload": {
-                    "$ref": "#/components/schemas/GetRoomStatusRequest"
+                    "$ref": "#/components/schemas/GetRoomStatusInput"
                 },
-                "summary": "Request the current status of a room.",
                 "headers": {
                     "type": "object",
                     "properties": {
@@ -129,14 +127,13 @@
                     "location": "$message.header#/correlation_id"
                 }
             },
-            "GetRoomStatusReply": {
-                "name": "GetRoomStatusReply",
-                "title": "GetRoomStatusReply",
+            "GetRoomStatusOutput": {
+                "name": "GetRoomStatusOutput",
+                "title": "GetRoomStatusOutput",
                 "contentType": "application/json",
                 "payload": {
-                    "$ref": "#/components/schemas/GetRoomStatusReply"
+                    "$ref": "#/components/schemas/GetRoomStatusOutput"
                 },
-                "summary": "The current status of a room.",
                 "headers": {
                     "type": "object",
                     "properties": {
@@ -171,23 +168,6 @@
             }
         },
         "schemas": {
-            "PostMessageCommand": {
-                "type": "object",
-                "description": "Command to post a chat message to a room.",
-                "properties": {
-                    "roomId": {
-                        "type": "string"
-                    },
-                    "userId": {
-                        "type": "string"
-                    },
-                    "body": {
-                        "type": "string",
-                        "maxLength": 4000,
-                        "minLength": 1
-                    }
-                }
-            },
             "ChatMessagePosted": {
                 "type": "object",
                 "description": "A chat message was posted to a room.",
@@ -209,9 +189,8 @@
                     }
                 }
             },
-            "GetRoomStatusReply": {
+            "GetRoomStatusOutput": {
                 "type": "object",
-                "description": "The current status of a room.",
                 "properties": {
                     "roomId": {
                         "type": "string"
@@ -221,12 +200,27 @@
                     }
                 }
             },
-            "GetRoomStatusRequest": {
+            "GetRoomStatusInput": {
                 "type": "object",
-                "description": "Request the current status of a room.",
                 "properties": {
                     "roomId": {
                         "type": "string"
+                    }
+                }
+            },
+            "PostMessageInput": {
+                "type": "object",
+                "properties": {
+                    "roomId": {
+                        "type": "string"
+                    },
+                    "userId": {
+                        "type": "string"
+                    },
+                    "body": {
+                        "type": "string",
+                        "maxLength": 4000,
+                        "minLength": 1
                     }
                 }
             }

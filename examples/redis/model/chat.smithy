@@ -25,38 +25,26 @@ service ChatRoom {
 /// Post a chat message to the room.
 @redisStream(key: "chat:posts", maxLen: 10000)
 operation PostMessage {
-    input: PostMessageCommand
+    input := {
+        roomId: String
+
+        userId: String
+
+        @length(min: 1, max: 4000)
+        body: String
+    }
 }
 
 /// Get the current status of a room through Redis Streams request/reply.
 @redisStream(key: "chat:room-status", maxLen: 10000)
 operation GetRoomStatus {
-    input: GetRoomStatusRequest
-    output: GetRoomStatusReply
-}
-
-/// Command to post a chat message to a room.
-@input
-structure PostMessageCommand {
-    roomId: String
-
-    userId: String
-
-    @length(min: 1, max: 4000)
-    body: String
-}
-
-/// Request the current status of a room.
-@input
-structure GetRoomStatusRequest {
-    roomId: String
-}
-
-/// The current status of a room.
-@output
-structure GetRoomStatusReply {
-    roomId: String
-    activeUsers: Integer
+    input := {
+        roomId: String
+    }
+    output := {
+        roomId: String
+        activeUsers: Integer
+    }
 }
 
 /// Chat messages posted to the room.

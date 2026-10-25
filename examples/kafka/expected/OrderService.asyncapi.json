@@ -11,8 +11,8 @@
         "orders.commands": {
             "address": "orders.commands",
             "messages": {
-                "SubmitOrderCommand": {
-                    "$ref": "#/components/messages/SubmitOrderCommand"
+                "SubmitOrderInput": {
+                    "$ref": "#/components/messages/SubmitOrderInput"
                 }
             },
             "bindings": {
@@ -56,7 +56,7 @@
             },
             "messages": [
                 {
-                    "$ref": "#/channels/orders.commands/messages/SubmitOrderCommand"
+                    "$ref": "#/channels/orders.commands/messages/SubmitOrderInput"
                 }
             ],
             "summary": "Submit a new order for processing."
@@ -82,14 +82,13 @@
     },
     "components": {
         "messages": {
-            "SubmitOrderCommand": {
-                "name": "SubmitOrderCommand",
-                "title": "SubmitOrderCommand",
+            "SubmitOrderInput": {
+                "name": "SubmitOrderInput",
+                "title": "SubmitOrderInput",
                 "contentType": "application/json",
                 "payload": {
-                    "$ref": "#/components/schemas/SubmitOrderCommand"
+                    "$ref": "#/components/schemas/SubmitOrderInput"
                 },
-                "summary": "Command to submit a new order.",
                 "bindings": {
                     "kafka": {
                         "key": {
@@ -184,9 +183,8 @@
             }
         },
         "schemas": {
-            "SubmitOrderCommand": {
+            "SubmitOrderInput": {
                 "type": "object",
-                "description": "Command to submit a new order.",
                 "properties": {
                     "orderId": {
                         "type": "string"

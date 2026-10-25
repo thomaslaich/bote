@@ -11,8 +11,8 @@
         "presence.commands": {
             "address": "presence.commands",
             "messages": {
-                "SetPresenceCommand": {
-                    "$ref": "#/components/messages/SetPresenceCommand"
+                "SetPresenceInput": {
+                    "$ref": "#/components/messages/SetPresenceInput"
                 }
             }
         },
@@ -33,7 +33,7 @@
             },
             "messages": [
                 {
-                    "$ref": "#/channels/presence.commands/messages/SetPresenceCommand"
+                    "$ref": "#/channels/presence.commands/messages/SetPresenceInput"
                 }
             ],
             "summary": "Set a user's presence."
@@ -53,14 +53,13 @@
     },
     "components": {
         "messages": {
-            "SetPresenceCommand": {
-                "name": "SetPresenceCommand",
-                "title": "SetPresenceCommand",
+            "SetPresenceInput": {
+                "name": "SetPresenceInput",
+                "title": "SetPresenceInput",
                 "contentType": "application/json",
                 "payload": {
-                    "$ref": "#/components/schemas/SetPresenceCommand"
-                },
-                "summary": "Command to set a user's presence."
+                    "$ref": "#/components/schemas/SetPresenceInput"
+                }
             },
             "PresenceChanged": {
                 "name": "PresenceChanged",
@@ -81,9 +80,8 @@
             }
         },
         "schemas": {
-            "SetPresenceCommand": {
+            "SetPresenceInput": {
                 "type": "object",
-                "description": "Command to set a user's presence.",
                 "properties": {
                     "userId": {
                         "type": "string"

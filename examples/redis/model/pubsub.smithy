@@ -23,14 +23,10 @@ service Presence {
 /// Set a user's presence.
 @redisChannel(name: "presence.commands")
 operation SetPresence {
-    input: SetPresenceCommand
-}
-
-/// Command to set a user's presence.
-@input
-structure SetPresenceCommand {
-    userId: String
-    status: PresenceStatus
+    input := {
+        userId: String
+        status: PresenceStatus
+    }
 }
 
 /// Presence changes.
