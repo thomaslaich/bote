@@ -1,7 +1,6 @@
 package bote.validate;
 
 import bote.BoteIndex;
-
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;

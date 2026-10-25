@@ -27,8 +27,8 @@ import software.amazon.smithy.model.validation.ValidationEvent;
  *   <li>every operation of a bote service carries the address trait of the service's protocol and
  *       takes an {@code @input} structure, its command; only Redis Streams operations may have an
  *       output, their reply, which is an {@code @output} structure
- *   <li>every channel listed in {@code @channels} carries that address trait, and its members target
- *       {@code @event} structures; with {@code eventDiscrimination: NONE} it has one member
+ *   <li>every channel listed in {@code @channels} carries that address trait, and its members
+ *       target {@code @event} structures; with {@code eventDiscrimination: NONE} it has one member
  *   <li>every union with an address trait is a channel of exactly one bote service
  *   <li>an {@code @event} structure is never an operation input or output
  * </ul>
@@ -114,8 +114,7 @@ public final class BindingValidator extends AbstractValidator {
           error(
               operation,
               String.format(
-                  "@%s operations must define an input: the command the owner receives.",
-                  trait)));
+                  "@%s operations must define an input: the command the owner receives.", trait)));
     } else {
       validateMarker(model, operation, operation.getInput().get(), InputTrait.ID, "input", events);
     }
@@ -142,7 +141,9 @@ public final class BindingValidator extends AbstractValidator {
     validateAddress(service, channel, "Channels", expected, events);
     for (MemberShape member : channel.getAllMembers().values()) {
       Optional<Shape> target = model.getShape(member.getTarget());
-      if (target.isEmpty() || !target.get().isStructureShape() || !target.get().hasTrait(BoteIndex.EVENT)) {
+      if (target.isEmpty()
+          || !target.get().isStructureShape()
+          || !target.get().hasTrait(BoteIndex.EVENT)) {
         events.add(
             error(
                 member,

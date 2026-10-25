@@ -120,7 +120,8 @@ class ProtoIndexValidatorTest {
             sensorId: String
         }
         """;
-    assertTrue(validate(model).stream().anyMatch(e -> e.getMessage().contains("test#Alerts$alert")));
+    assertTrue(
+        validate(model).stream().anyMatch(e -> e.getMessage().contains("test#Alerts$alert")));
   }
 
   @Test

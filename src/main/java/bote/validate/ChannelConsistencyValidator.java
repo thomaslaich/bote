@@ -24,8 +24,7 @@ import software.amazon.smithy.model.validation.ValidationEvent;
  *
  * <ul>
  *   <li>an address is owned by exactly one service
- *   <li>an address has one use: it is one channel, or the address of command operations, never
- *       both
+ *   <li>an address has one use: it is one channel, or the address of command operations, never both
  *   <li>operations on one address declare identical address values (compaction, {@code maxLen},
  *       ...)
  *   <li>{@code @bote.infra#kafkaTopicConfig} is declared on at most one shape per address
@@ -132,7 +131,11 @@ public final class ChannelConsistencyValidator extends AbstractValidator {
 
     Set<ShapeId> commandTypes = new LinkedHashSet<>();
     for (Binding binding : bindings) {
-      binding.shape().asOperationShape().flatMap(OperationShape::getInput).ifPresent(commandTypes::add);
+      binding
+          .shape()
+          .asOperationShape()
+          .flatMap(OperationShape::getInput)
+          .ifPresent(commandTypes::add);
     }
     if (commandTypes.size() > 1) {
       events.add(

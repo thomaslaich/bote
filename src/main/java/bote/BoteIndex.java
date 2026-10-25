@@ -48,7 +48,8 @@ public final class BoteIndex implements KnowledgeIndex {
    */
   public record AddressTrait(ShapeId id, String addressMember, String broker) {}
 
-  public static final AddressTrait KAFKA_TOPIC_TRAIT = new AddressTrait(KAFKA_TOPIC, "name", "kafka");
+  public static final AddressTrait KAFKA_TOPIC_TRAIT =
+      new AddressTrait(KAFKA_TOPIC, "name", "kafka");
   public static final AddressTrait REDIS_STREAM_TRAIT =
       new AddressTrait(REDIS_STREAM, "key", "redis-stream");
   public static final AddressTrait REDIS_CHANNEL_TRAIT =

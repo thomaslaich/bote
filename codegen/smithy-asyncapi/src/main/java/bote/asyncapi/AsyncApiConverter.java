@@ -2,7 +2,6 @@ package bote.asyncapi;
 
 import bote.BoteIndex;
 import bote.BoteIndex.Address;
-
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -50,9 +49,8 @@ import software.amazon.smithy.model.traits.TitleTrait;
  *   <li>{@code @kafkaKey} -&gt; the Kafka message binding key
  *   <li>{@code @kafkaHeader} -&gt; the message headers schema; header members are stripped from
  *       payload schemas because they travel only as Kafka headers
- *   <li>a Redis Streams operation with an output -&gt; an operation reply on a
- *       dynamic Pub/Sub channel, addressed by {@code reply_to} and matched by {@code
- *       correlation_id}
+ *   <li>a Redis Streams operation with an output -&gt; an operation reply on a dynamic Pub/Sub
+ *       channel, addressed by {@code reply_to} and matched by {@code correlation_id}
  *   <li>{@code @bote.infra#kafkaTopicConfig} -&gt; Kafka channel binding partitions/replicas/config
  * </ul>
  */
