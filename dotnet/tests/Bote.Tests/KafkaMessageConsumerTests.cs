@@ -103,7 +103,7 @@ public sealed class KafkaMessageConsumerTests
         });
         await using var provider = services.BuildServiceProvider();
         var driver = new FakeConsumer([Delivery(0)]);
-        var binding = new MessageReceiveBinding<int, Handler>(
+        var binding = InboundBinding.Create<int, Handler>(
             "test#Service",
             "test#Read",
             "test",
@@ -123,10 +123,10 @@ public sealed class KafkaMessageConsumerTests
     private static KafkaMessageConsumer CreateConsumer(
         ServiceProvider provider,
         FakeConsumer driver,
-        MessageReceiveBinding? binding = null
+        InboundBinding? binding = null
     )
     {
-        binding ??= new MessageReceiveBinding<int, Handler>(
+        binding ??= InboundBinding.Create<int, Handler>(
             "test#Service",
             "test#Read",
             "test",

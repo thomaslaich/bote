@@ -59,7 +59,7 @@ public sealed class RedisRuntimeTests
         await using var services = new ServiceCollection()
             .AddScoped<IReplyHandler, ReplyHandler>()
             .BuildServiceProvider();
-        var binding = new MessageReplyReceiveBinding<int, int, IReplyHandler>(
+        var binding = InboundBinding.CreateReply<int, int, IReplyHandler>(
             "test#Service",
             "test#Read",
             "test",
@@ -208,7 +208,7 @@ public sealed class RedisRuntimeTests
         Assert.Empty(driver.Subscriptions);
     }
 
-    private static MessageRequestBinding<int, int> RequestBinding() =>
+    private static OutboundBinding<int, int> RequestBinding() =>
         new(
             "test#Service",
             "test#Read",
@@ -221,8 +221,8 @@ public sealed class RedisRuntimeTests
                 )
         );
 
-    private static MessageReceiveBinding<int, Handler> Binding(string address = "test") =>
-        new MessageReceiveBinding<int, Handler>(
+    private static InboundBinding Binding(string address = "test") =>
+        InboundBinding.Create<int, Handler>(
             "test#Service",
             "test#Read",
             address,

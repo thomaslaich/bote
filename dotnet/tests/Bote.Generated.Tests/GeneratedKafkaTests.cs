@@ -37,7 +37,7 @@ public sealed class GeneratedKafkaTests
             .BuildServiceProvider();
         await new MessageProcessor(
             services.GetRequiredService<IServiceScopeFactory>()
-        ).ProcessAsync(E.DeviceMessaging.DimReceive, payload);
+        ).ProcessAsync(E.DeviceMessaging.DimInbound, payload);
         Assert.Equal(new E.DimInput(DeviceId: "light-1", TraceId: "trace-1"), handler.Command);
     }
 
@@ -50,28 +50,28 @@ public sealed class GeneratedKafkaTests
         var sender = new CapturingSender();
         var handler = new EventHandler();
         var collection = new ServiceCollection();
-        MessageReceiveBinding receive;
+        InboundBinding receive;
         switch (mode)
         {
             case "ENVELOPE":
                 await new E.DeviceEventsPublisher(sender).PublishMeasuredAsync(
                     new E.Measured(DeviceId: "light-1", Lumens: 42, Source: "sensor")
                 );
-                receive = E.DeviceMessaging.DeviceEventsReceive;
+                receive = E.DeviceMessaging.DeviceEventsInbound;
                 collection.AddSingleton<E.IDeviceEventsHandler>(handler);
                 break;
             case "HEADER":
                 await new H.DeviceEventsPublisher(sender).PublishMeasuredAsync(
                     new H.Measured(DeviceId: "light-1", Lumens: 42, Source: "sensor")
                 );
-                receive = H.DeviceMessaging.DeviceEventsReceive;
+                receive = H.DeviceMessaging.DeviceEventsInbound;
                 collection.AddSingleton<H.IDeviceEventsHandler>(handler);
                 break;
             default:
                 await new N.DeviceEventsPublisher(sender).PublishMeasuredAsync(
                     new N.Measured(DeviceId: "light-1", Lumens: 42, Source: "sensor")
                 );
-                receive = N.DeviceMessaging.DeviceEventsReceive;
+                receive = N.DeviceMessaging.DeviceEventsInbound;
                 collection.AddSingleton<N.IDeviceEventsHandler>(handler);
                 break;
         }
@@ -105,7 +105,7 @@ public sealed class GeneratedKafkaTests
             .AddSingleton<E.IDeviceEventsHandler>(handler)
             .BuildServiceProvider();
         await Assert.ThrowsAsync<JsonException>(() =>
-            E.DeviceMessaging.DeviceEventsReceive.DispatchAsync(
+            E.DeviceMessaging.DeviceEventsInbound.DispatchAsync(
                 new MessagePayload(Encoding.UTF8.GetBytes(json)),
                 services,
                 CancellationToken.None
@@ -121,7 +121,7 @@ public sealed class GeneratedKafkaTests
         await using var services = new ServiceCollection()
             .AddSingleton<E.IDeviceEventsHandler>(handler)
             .BuildServiceProvider();
-        await E.DeviceMessaging.DeviceEventsReceive.DispatchAsync(
+        await E.DeviceMessaging.DeviceEventsInbound.DispatchAsync(
             new MessagePayload("{\"future-event\":{}}"u8.ToArray()),
             services,
             CancellationToken.None
@@ -138,14 +138,14 @@ public sealed class GeneratedKafkaTests
             .AddSingleton<H.IDeviceEventsHandler>(handler)
             .BuildServiceProvider();
         await Assert.ThrowsAsync<JsonException>(() =>
-            H.DeviceMessaging.DeviceEventsReceive.DispatchAsync(
+            H.DeviceMessaging.DeviceEventsInbound.DispatchAsync(
                 new MessagePayload("{\"deviceId\":\"light-1\",\"lumens\":42}"u8.ToArray()),
                 services,
                 CancellationToken.None
             )
         );
         await Assert.ThrowsAsync<MissingRequiredMemberException>(() =>
-            H.DeviceMessaging.DeviceEventsReceive.DispatchAsync(
+            H.DeviceMessaging.DeviceEventsInbound.DispatchAsync(
                 new MessagePayload(
                     "{\"deviceId\":\"light-1\",\"lumens\":42}"u8.ToArray(),
                     Headers: new Dictionary<string, byte[]>
@@ -168,7 +168,7 @@ public sealed class GeneratedKafkaTests
         public CancellationToken CancellationToken { get; private set; }
 
         public Task SendAsync<T>(
-            MessageSendBinding<T> binding,
+            OutboundBinding<T> binding,
             T message,
             CancellationToken cancellationToken = default
         )

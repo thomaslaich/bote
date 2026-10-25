@@ -6,7 +6,7 @@ namespace Bote;
 public sealed class MessageProcessor(IServiceScopeFactory scopes)
 {
     public async Task<MessagePayload?> ProcessAsync(
-        MessageReceiveBinding binding,
+        InboundBinding binding,
         MessagePayload payload,
         CancellationToken cancellationToken = default
     )

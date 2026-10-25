@@ -39,46 +39,13 @@ final class RedisGenerator extends MessagingGenerator {
   }
 
   @Override
-  String commandSendBindingType(Command command) {
-    if (kind == Kind.PUB_SUB) {
-      return super.commandSendBindingType(command);
-    }
-    return command
-        .output()
-        .map(
-            o ->
-                "RedisStreamRequestBinding<" + typeName(command.input()) + ", " + typeName(o) + ">")
-        .orElse("RedisStreamSendBinding<" + typeName(command.input()) + ">");
+  String outboundOptions(Address address) {
+    return kind == Kind.STREAMS ? ", maxLength: " + maxLength(address) : "";
   }
 
   @Override
-  String commandSendBinding(Command command) {
-    String reply = command.output().map(o -> ", Decode" + command.name() + "Reply").orElse("");
-    return "new(" + facts(command) + ", Encode" + command.name() + reply + maxLength(command) + ")";
-  }
-
-  @Override
-  String eventSendBinding(Channel channel, Event event) {
-    return "new("
-        + facts(channel)
-        + ", Encode"
-        + channel.name()
-        + event.name()
-        + maxLength(channel)
-        + ")";
-  }
-
-  @Override
-  String eventSendBindingType(Event event) {
-    String type = typeName(event.shape());
-    return kind == Kind.STREAMS
-        ? "RedisStreamSendBinding<" + type + ">"
-        : "MessageSendBinding<" + type + ">";
-  }
-
-  @Override
-  String consumerRegistration(List<String> bindings) {
-    return "services.Add" + transport() + "Consumer(options, " + String.join(", ", bindings) + ")";
+  String consumerRegistration(List<String> inbounds) {
+    return "services.Add" + transport() + "Consumer(options, " + String.join(", ", inbounds) + ")";
   }
 
   @Override
@@ -153,14 +120,6 @@ final class RedisGenerator extends MessagingGenerator {
 
   private String transport() {
     return kind == Kind.STREAMS ? "RedisStream" : "RedisPubSub";
-  }
-
-  private String maxLength(Command command) {
-    return kind == Kind.STREAMS ? ", " + maxLength(command.address()) : "";
-  }
-
-  private String maxLength(Channel channel) {
-    return kind == Kind.STREAMS ? ", " + maxLength(channel.address()) : "";
   }
 
   private static String maxLength(Address address) {

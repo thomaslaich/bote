@@ -41,7 +41,7 @@ public sealed class RedisIntegrationTests
                 (
                     await connection
                         .GetDatabase()
-                        .StreamPendingAsync(R.InventoryMessaging.GetStockReceive.Address, group)
+                        .StreamPendingAsync(R.InventoryMessaging.GetStockInbound.Address, group)
                 ).PendingMessageCount == 0
             );
         }
@@ -51,7 +51,7 @@ public sealed class RedisIntegrationTests
             await connection
                 .GetDatabase()
                 .StreamDeleteConsumerGroupAsync(
-                    R.InventoryMessaging.GetStockReceive.Address,
+                    R.InventoryMessaging.GetStockInbound.Address,
                     group
                 );
         }
@@ -63,7 +63,7 @@ public sealed class RedisIntegrationTests
         await using var connection = await ConnectAsync();
         var driver = new RedisDriver(connection, -1);
         var group = Guid.NewGuid().ToString("N");
-        var binding = S.ChatRoomMessaging.PostMessageReceive;
+        var binding = S.ChatRoomMessaging.PostMessageInbound;
         var calls = new List<string>();
         var handler = new PostHandler(calls) { Fail = true };
         await using var services = new ServiceCollection()
@@ -79,7 +79,7 @@ public sealed class RedisIntegrationTests
         };
         using var first = new RedisStreamsConsumer(driver, [binding], processor, services, options);
         await first.StartAsync(CancellationToken.None);
-        var payload = S.ChatRoomMessaging.PostMessageSend.Encode(
+        var payload = S.ChatRoomMessaging.PostMessageOutbound.Encode(
             new S.PostMessageInput(Body: "recover me", RoomId: "test", UserId: "alice")
         );
         await driver.AppendAsync(binding.Address, payload.Value, null);
@@ -129,7 +129,7 @@ public sealed class RedisIntegrationTests
         var driver = new RedisDriver(connection, -1);
         var store = new RedisStreamCheckpointStore(connection, keyPrefix: address + ":checkpoint:");
         var received = new List<int>();
-        var binding = new MessageReceiveBinding<int, NumberHandler>(
+        var binding = InboundBinding.Create<int, NumberHandler>(
             "test#Service",
             "test#Read",
             address,
@@ -198,7 +198,7 @@ public sealed class RedisIntegrationTests
         var subscribers = await connection
             .GetSubscriber()
             .PublishAsync(
-                RedisChannel.Literal(P.ChatRoomMessaging.ChatEventsReceive.Address),
+                RedisChannel.Literal(P.ChatRoomMessaging.ChatEventsInbound.Address),
                 "{}"
             );
         Assert.Equal(0, subscribers);

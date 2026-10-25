@@ -87,7 +87,7 @@ class BoteCSharpIntegrationTest {
   }
 
   @Test
-  void redisStreamRequestReplyUsesTheRequestBinding() {
+  void redisStreamRequestReplyBindsTheReply() {
     String model =
         """
         $version: "2"
@@ -108,7 +108,7 @@ class BoteCSharpIntegrationTest {
 
     assertTrue(
         file(manifest, Path.of("Test/Inventory.Messaging.Client.g.cs"))
-            .contains("RedisStreamRequestBinding<Test.GetStockInput, Test.GetStockOutput>"));
+            .contains("OutboundBinding<Test.GetStockInput, Test.GetStockOutput> GetStockOutbound"));
     assertTrue(
         file(manifest, Path.of("Test/Inventory.Messaging.Server.g.cs"))
             .contains("Task<Test.GetStockOutput> HandleAsync(Test.GetStockInput command"));
@@ -119,7 +119,7 @@ class BoteCSharpIntegrationTest {
     String server = file(generate(KAFKA, "test#Orders", true, false), SERVER);
 
     assertTrue(server.contains("System.Threading.Tasks.Task HandleAsync(Test.PlaceOrderInput"));
-    assertFalse(server.contains("MessageReplyReceiveBinding"));
+    assertFalse(server.contains("CreateReply"));
   }
 
   @Test

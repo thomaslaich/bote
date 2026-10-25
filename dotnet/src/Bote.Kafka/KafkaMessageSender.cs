@@ -14,22 +14,22 @@ public sealed class KafkaMessageSender : IMessageSender, IDisposable
     }
 
     public async Task SendAsync<T>(
-        MessageSendBinding<T> binding,
+        OutboundBinding<T> outbound,
         T message,
         CancellationToken cancellationToken = default
     )
     {
-        ArgumentNullException.ThrowIfNull(binding);
+        ArgumentNullException.ThrowIfNull(outbound);
         ArgumentNullException.ThrowIfNull(message);
         cancellationToken.ThrowIfCancellationRequested();
-        var payload = binding.Encode(message);
+        var payload = outbound.Encode(message);
         var headers = new Headers();
         if (payload.Headers is { } modeledHeaders)
             foreach (var header in modeledHeaders)
                 headers.Add(header.Key, header.Value);
         await producer
             .ProduceAsync(
-                binding.Address,
+                outbound.Address,
                 new Message<string?, byte[]>
                 {
                     Key = payload.Key,

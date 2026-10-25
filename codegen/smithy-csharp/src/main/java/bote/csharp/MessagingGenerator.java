@@ -1,5 +1,6 @@
 package bote.csharp;
 
+import bote.BoteIndex.Address;
 import bote.csharp.Contract.Channel;
 import bote.csharp.Contract.Command;
 import bote.csharp.Contract.Event;
@@ -17,8 +18,8 @@ import software.amazon.smithy.model.shapes.Shape;
  * events; the client side sends commands and handles events. Each side goes to its own file, and
  * the codecs both sides share go to a third.
  *
- * <p>Subclasses supply the broker: how payloads are encoded, which runtime bindings carry them, and
- * how consumers are registered.
+ * <p>Subclasses supply the broker: how payloads are encoded, which inbounds and outbounds carry
+ * them, and how consumers are registered.
  */
 abstract class MessagingGenerator {
 
@@ -41,20 +42,19 @@ abstract class MessagingGenerator {
   /** Writes the codec fields and the encode and decode methods both sides use. */
   abstract void writeCodecs(CSharpWriter writer);
 
-  /** The expression constructing the send binding for a command. */
-  abstract String commandSendBinding(Command command);
-
-  /** The expression constructing the send binding for one event of a channel. */
-  abstract String eventSendBinding(Channel channel, Event event);
-
-  /** The registration of a hosted consumer for {@code bindings}, as an expression. */
-  abstract String consumerRegistration(List<String> bindings);
+  /** The registration of a hosted consumer for {@code inbounds}, as an expression. */
+  abstract String consumerRegistration(List<String> inbounds);
 
   /** The parameters a consumer registration method takes, after the service collection. */
   abstract String consumerParameters();
 
   /** The runtime sender type that the generated registrations hand to publishers and clients. */
   abstract String senderType();
+
+  /** Extra arguments of an outbound to {@code address}, after the encoders; empty by default. */
+  String outboundOptions(Address address) {
+    return "";
+  }
 
   /** Writes all files for the service. */
   void run() {
@@ -111,19 +111,21 @@ abstract class MessagingGenerator {
     writer.openBlock("{");
     for (Command command : contract.commands()) {
       writer.write(
-          "internal static readonly $L $LReceive = $L;",
-          commandReceiveBindingType(command),
+          "internal static readonly InboundBinding $LInbound = $L;",
           command.name(),
-          commandReceiveBinding(command));
+          commandInbound(command));
     }
     for (Channel channel : contract.channels()) {
       for (Event event : channel.events()) {
         writer.write(
-            "internal static readonly $L $L$LSend = $L;",
-            eventSendBindingType(event),
+            "internal static readonly OutboundBinding<$L> $L$LOutbound = new($L, Encode$L$L$L);",
+            typeName(event.shape()),
             channel.name(),
             event.name(),
-            eventSendBinding(channel, event));
+            facts(channel),
+            channel.name(),
+            event.name(),
+            outboundOptions(channel.address()));
       }
     }
     writer.closeBlock("}");
@@ -139,7 +141,7 @@ abstract class MessagingGenerator {
                 w,
                 service + "CommandConsumer",
                 contract.commands().stream()
-                    .map(c -> service + "Messaging." + c.name() + "Receive")
+                    .map(c -> service + "Messaging." + c.name() + "Inbound")
                     .toList());
           }
           for (Channel channel : contract.channels()) {
@@ -178,7 +180,7 @@ abstract class MessagingGenerator {
                     String.format(
                         """
                         public %s Publish%sAsync(%s @event, %s cancellationToken = default) =>
-                            _sender.SendAsync(%sMessaging.%s%sSend, @event, cancellationToken);
+                            _sender.SendAsync(%sMessaging.%s%sOutbound, @event, cancellationToken);
                         """,
                         TASK,
                         event.name(),
@@ -222,15 +224,18 @@ abstract class MessagingGenerator {
     writer.openBlock("{");
     for (Command command : contract.commands()) {
       writer.write(
-          "internal static readonly $L $LSend = $L;",
-          commandSendBindingType(command),
+          "internal static readonly $L $LOutbound = new($L, Encode$L$L$L);",
+          outboundType(command),
           command.name(),
-          commandSendBinding(command));
+          facts(command),
+          command.name(),
+          command.output().map(o -> ", Decode" + command.name() + "Reply").orElse(""),
+          outboundOptions(command.address()));
     }
     for (Channel channel : contract.channels()) {
       writer.write(
           """
-          internal static readonly MessageReceiveBinding<$1L, I$2LHandler> $2LReceive = new(
+          internal static readonly InboundBinding $2LInbound = InboundBinding.Create<$1L, I$2LHandler>(
               $3L, $4L, $5L, Decode$2L, static (handler, message, ct) => message switch
               {
                   ${6L|}
@@ -266,7 +271,7 @@ abstract class MessagingGenerator {
             writeConsumerRegistration(
                 w,
                 channel.name() + "Consumer",
-                List.of(service + "Messaging." + channel.name() + "Receive"));
+                List.of(service + "Messaging." + channel.name() + "Inbound"));
           }
         });
   }
@@ -307,7 +312,7 @@ abstract class MessagingGenerator {
                     String.format(
                         """
                         public %s %sAsync(%s command, %s cancellationToken = default) =>
-                            %s(%sMessaging.%sSend, command, cancellationToken);
+                            %s(%sMessaging.%sOutbound, command, cancellationToken);
                         """,
                         replyTask(c),
                         c.name(),
@@ -364,53 +369,40 @@ abstract class MessagingGenerator {
         CANCELLATION_TOKEN);
   }
 
-  // Bindings.
+  // Inbounds and outbounds.
 
-  String commandSendBindingType(Command command) {
+  private String outboundType(Command command) {
+    String input = typeName(command.input());
     return command
         .output()
-        .map(o -> "MessageRequestBinding<" + typeName(command.input()) + ", " + typeName(o) + ">")
-        .orElse("MessageSendBinding<" + typeName(command.input()) + ">");
+        .map(o -> "OutboundBinding<" + input + ", " + typeName(o) + ">")
+        .orElse("OutboundBinding<" + input + ">");
   }
 
-  private String commandReceiveBindingType(Command command) {
+  private String commandInbound(Command command) {
+    String input = typeName(command.input());
+    String handler = "I" + command.name() + "Handler";
+    String handle = "static (handler, command, ct) => handler.HandleAsync(command, ct)";
     return command
         .output()
         .map(
             o ->
-                "MessageReplyReceiveBinding<"
-                    + typeName(command.input())
-                    + ", "
-                    + typeName(o)
-                    + ", I"
-                    + command.name()
-                    + "Handler>")
+                String.format(
+                    "InboundBinding.CreateReply<%s, %s, %s>(%s, Decode%s, Encode%sReply, %s)",
+                    input,
+                    typeName(o),
+                    handler,
+                    facts(command),
+                    command.name(),
+                    command.name(),
+                    handle))
         .orElse(
-            "MessageReceiveBinding<"
-                + typeName(command.input())
-                + ", I"
-                + command.name()
-                + "Handler>");
+            String.format(
+                "InboundBinding.Create<%s, %s>(%s, Decode%s, %s)",
+                input, handler, facts(command), command.name(), handle));
   }
 
-  private String commandReceiveBinding(Command command) {
-    String facts = facts(command);
-    if (command.output().isPresent()) {
-      return String.format(
-          "new(%s, Decode%s, Encode%sReply, static (handler, command, ct) =>"
-              + " handler.HandleAsync(command, ct))",
-          facts, command.name(), command.name());
-    }
-    return String.format(
-        "new(%s, Decode%s, static (handler, command, ct) => handler.HandleAsync(command, ct))",
-        facts, command.name());
-  }
-
-  String eventSendBindingType(Event event) {
-    return "MessageSendBinding<" + typeName(event.shape()) + ">";
-  }
-
-  /** The service id, operation id and address arguments of a command's bindings. */
+  /** The service id, operation id and address arguments of a command's inbound and outbound. */
   String facts(Command command) {
     return String.join(
         ", ",
@@ -419,7 +411,7 @@ abstract class MessagingGenerator {
         literal(command.address().name()));
   }
 
-  /** The service id, channel id and address arguments of a channel's bindings. */
+  /** The service id, channel id and address arguments of a channel's inbound and outbound. */
   String facts(Channel channel) {
     return String.join(
         ", ",
@@ -464,7 +456,7 @@ abstract class MessagingGenerator {
     return sends && requests ? "sender, sender" : "sender";
   }
 
-  private void writeConsumerRegistration(CSharpWriter writer, String name, List<String> bindings) {
+  private void writeConsumerRegistration(CSharpWriter writer, String name, List<String> inbounds) {
     String parameters = consumerParameters();
     writer.write(
         """
@@ -473,7 +465,7 @@ abstract class MessagingGenerator {
         """,
         name,
         parameters.isEmpty() ? "" : ", " + parameters,
-        consumerRegistration(bindings));
+        consumerRegistration(inbounds));
   }
 
   // Helpers.

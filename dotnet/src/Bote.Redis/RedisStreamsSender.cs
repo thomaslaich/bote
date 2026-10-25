@@ -22,36 +22,31 @@ public sealed class RedisStreamsSender : IMessageSender, IMessageRequestSender
     }
 
     public async Task SendAsync<T>(
-        MessageSendBinding<T> binding,
+        OutboundBinding<T> outbound,
         T message,
         CancellationToken cancellationToken = default
     )
     {
-        ArgumentNullException.ThrowIfNull(binding);
+        ArgumentNullException.ThrowIfNull(outbound);
         ArgumentNullException.ThrowIfNull(message);
         cancellationToken.ThrowIfCancellationRequested();
-        var payload = binding.Encode(message);
+        var payload = outbound.Encode(message);
         await driver
-            .AppendAsync(
-                binding.Address,
-                payload.Value,
-                (binding as IRedisStreamBinding)?.MaxLength,
-                payload.ContentType
-            )
+            .AppendAsync(outbound.Address, payload.Value, outbound.MaxLength, payload.ContentType)
             .WaitAsync(cancellationToken)
             .ConfigureAwait(false);
     }
 
     public async Task<TReply> RequestAsync<TRequest, TReply>(
-        MessageRequestBinding<TRequest, TReply> binding,
+        OutboundBinding<TRequest, TReply> outbound,
         TRequest request,
         CancellationToken cancellationToken = default
     )
     {
-        ArgumentNullException.ThrowIfNull(binding);
+        ArgumentNullException.ThrowIfNull(outbound);
         ArgumentNullException.ThrowIfNull(request);
         cancellationToken.ThrowIfCancellationRequested();
-        var payload = binding.Encode(request);
+        var payload = outbound.Encode(request);
         var correlationId = Guid.NewGuid().ToString("N");
         var replyTo = "bote:reply:" + correlationId;
         var completion = new TaskCompletionSource<byte[]>(
@@ -84,9 +79,9 @@ public sealed class RedisStreamsSender : IMessageSender, IMessageRequestSender
             deadline.Token.ThrowIfCancellationRequested();
             await driver
                 .AppendAsync(
-                    binding.Address,
+                    outbound.Address,
                     payload.Value,
-                    (binding as IRedisStreamBinding)?.MaxLength,
+                    outbound.MaxLength,
                     payload.ContentType,
                     replyTo,
                     correlationId
@@ -94,13 +89,13 @@ public sealed class RedisStreamsSender : IMessageSender, IMessageRequestSender
                 .WaitAsync(deadline.Token)
                 .ConfigureAwait(false);
             var reply = await completion.Task.WaitAsync(deadline.Token).ConfigureAwait(false);
-            return binding.DecodeReply(new MessagePayload(reply));
+            return outbound.DecodeReply(new MessagePayload(reply));
         }
         catch (OperationCanceledException exception)
             when (!cancellationToken.IsCancellationRequested && deadline.IsCancellationRequested)
         {
             throw new TimeoutException(
-                $"Reply timed out for operation {binding.OperationId}.",
+                $"Reply timed out for operation {outbound.OperationId}.",
                 exception
             );
         }

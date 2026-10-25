@@ -10,7 +10,7 @@ namespace Bote.Kafka;
 /// </summary>
 public sealed partial class KafkaMessageConsumer : BackgroundService
 {
-    private readonly IReadOnlyDictionary<string, MessageReceiveBinding> bindings;
+    private readonly IReadOnlyDictionary<string, InboundBinding> bindings;
     private readonly MessageProcessor processor;
     private readonly IServiceProvider services;
     private readonly Func<IKafkaConsumerDriver> createConsumer;
@@ -18,7 +18,7 @@ public sealed partial class KafkaMessageConsumer : BackgroundService
 
     public KafkaMessageConsumer(
         ConsumerConfig config,
-        IEnumerable<MessageReceiveBinding> bindings,
+        IEnumerable<InboundBinding> bindings,
         MessageProcessor processor,
         IServiceProvider services,
         ILogger<KafkaMessageConsumer> logger
@@ -26,7 +26,7 @@ public sealed partial class KafkaMessageConsumer : BackgroundService
         : this(bindings, processor, services, CreateFactory(config), logger) { }
 
     internal KafkaMessageConsumer(
-        IEnumerable<MessageReceiveBinding> bindings,
+        IEnumerable<InboundBinding> bindings,
         MessageProcessor processor,
         IServiceProvider services,
         Func<IKafkaConsumerDriver> createConsumer,

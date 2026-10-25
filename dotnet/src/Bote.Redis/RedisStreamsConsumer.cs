@@ -7,7 +7,7 @@ namespace Bote.Redis;
 public sealed class RedisStreamsConsumer : BackgroundService
 {
     private readonly IRedisDriver driver;
-    private readonly MessageReceiveBinding[] bindings;
+    private readonly InboundBinding[] bindings;
     private readonly MessageProcessor processor;
     private readonly IServiceProvider services;
     private readonly RedisStreamConsumerOptions options;
@@ -17,7 +17,7 @@ public sealed class RedisStreamsConsumer : BackgroundService
 
     public RedisStreamsConsumer(
         IConnectionMultiplexer connection,
-        IEnumerable<MessageReceiveBinding> bindings,
+        IEnumerable<InboundBinding> bindings,
         MessageProcessor processor,
         IServiceProvider services,
         RedisStreamConsumerOptions? options = null,
@@ -34,7 +34,7 @@ public sealed class RedisStreamsConsumer : BackgroundService
 
     internal RedisStreamsConsumer(
         IRedisDriver driver,
-        IEnumerable<MessageReceiveBinding> bindings,
+        IEnumerable<InboundBinding> bindings,
         MessageProcessor processor,
         IServiceProvider services,
         RedisStreamConsumerOptions options,
@@ -171,7 +171,7 @@ public sealed class RedisStreamsConsumer : BackgroundService
     }
 
     private async Task ProcessGroupDeliveryAsync(
-        MessageReceiveBinding binding,
+        InboundBinding binding,
         RedisDelivery delivery,
         CancellationToken ct
     )

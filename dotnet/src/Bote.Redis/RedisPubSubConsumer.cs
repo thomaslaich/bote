@@ -8,16 +8,16 @@ namespace Bote.Redis;
 public sealed class RedisPubSubConsumer : BackgroundService
 {
     private readonly IRedisDriver driver;
-    private readonly MessageReceiveBinding[] bindings;
+    private readonly InboundBinding[] bindings;
     private readonly MessageProcessor processor;
     private readonly IServiceProvider services;
-    private readonly Channel<(MessageReceiveBinding Binding, byte[] Payload)> queue;
+    private readonly Channel<(InboundBinding Binding, byte[] Payload)> queue;
     private readonly List<IAsyncDisposable> subscriptions = [];
     private Exception? overflow;
 
     public RedisPubSubConsumer(
         IConnectionMultiplexer connection,
-        IEnumerable<MessageReceiveBinding> bindings,
+        IEnumerable<InboundBinding> bindings,
         MessageProcessor processor,
         IServiceProvider services,
         RedisPubSubConsumerOptions? options = null
@@ -26,7 +26,7 @@ public sealed class RedisPubSubConsumer : BackgroundService
 
     internal RedisPubSubConsumer(
         IRedisDriver driver,
-        IEnumerable<MessageReceiveBinding> bindings,
+        IEnumerable<InboundBinding> bindings,
         MessageProcessor processor,
         IServiceProvider services,
         RedisPubSubConsumerOptions options
@@ -48,7 +48,7 @@ public sealed class RedisPubSubConsumer : BackgroundService
         this.driver = driver;
         this.processor = processor;
         this.services = services;
-        queue = Channel.CreateBounded<(MessageReceiveBinding Binding, byte[] Payload)>(
+        queue = Channel.CreateBounded<(InboundBinding Binding, byte[] Payload)>(
             new BoundedChannelOptions(options.Capacity)
             {
                 SingleReader = true,

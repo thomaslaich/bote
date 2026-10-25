@@ -36,7 +36,7 @@ public static class RedisMessagingExtensions
     public static IServiceCollection AddRedisStreamConsumer(
         this IServiceCollection services,
         RedisStreamConsumerOptions? options,
-        params MessageReceiveBinding[] bindings
+        params InboundBinding[] bindings
     )
     {
         ArgumentNullException.ThrowIfNull(services);
@@ -56,7 +56,7 @@ public static class RedisMessagingExtensions
     public static IServiceCollection AddRedisPubSubConsumer(
         this IServiceCollection services,
         RedisPubSubConsumerOptions? options,
-        params MessageReceiveBinding[] bindings
+        params InboundBinding[] bindings
     )
     {
         ArgumentNullException.ThrowIfNull(services);

@@ -28,7 +28,7 @@ public static class KafkaMessagingExtensions
     /// <summary>Connects generated operation definitions to a runtime-owned hosted consumer.</summary>
     public static IServiceCollection AddKafkaMessageConsumer(
         this IServiceCollection services,
-        params MessageReceiveBinding[] bindings
+        params InboundBinding[] bindings
     )
     {
         ArgumentNullException.ThrowIfNull(services);

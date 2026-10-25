@@ -12,17 +12,17 @@ public sealed class RedisPubSubSender : IMessageSender
     internal RedisPubSubSender(IRedisDriver driver) => this.driver = driver;
 
     public async Task SendAsync<T>(
-        MessageSendBinding<T> binding,
+        OutboundBinding<T> outbound,
         T message,
         CancellationToken cancellationToken = default
     )
     {
-        ArgumentNullException.ThrowIfNull(binding);
+        ArgumentNullException.ThrowIfNull(outbound);
         ArgumentNullException.ThrowIfNull(message);
         cancellationToken.ThrowIfCancellationRequested();
-        var payload = binding.Encode(message);
+        var payload = outbound.Encode(message);
         await driver
-            .PublishAsync(binding.Address, payload.Value)
+            .PublishAsync(outbound.Address, payload.Value)
             .WaitAsync(cancellationToken)
             .ConfigureAwait(false);
     }

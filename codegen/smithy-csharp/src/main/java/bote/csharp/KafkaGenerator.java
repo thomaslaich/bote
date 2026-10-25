@@ -51,18 +51,8 @@ final class KafkaGenerator extends MessagingGenerator {
   }
 
   @Override
-  String commandSendBinding(Command command) {
-    return "new(" + facts(command) + ", Encode" + command.name() + ")";
-  }
-
-  @Override
-  String eventSendBinding(Channel channel, Event event) {
-    return "new(" + facts(channel) + ", Encode" + channel.name() + event.name() + ")";
-  }
-
-  @Override
-  String consumerRegistration(List<String> bindings) {
-    return "services.AddKafkaMessageConsumer(" + String.join(", ", bindings) + ")";
+  String consumerRegistration(List<String> inbounds) {
+    return "services.AddKafkaMessageConsumer(" + String.join(", ", inbounds) + ")";
   }
 
   @Override
