@@ -130,9 +130,6 @@ abstract class MessagingGenerator {
     }
     writer.closeBlock("}");
 
-    if (!context.settings().generateDependencyInjection()) {
-      return;
-    }
     writeExtensions(
         writer,
         w -> {
@@ -258,9 +255,6 @@ abstract class MessagingGenerator {
     }
     writer.closeBlock("}");
 
-    if (!context.settings().generateDependencyInjection()) {
-      return;
-    }
     writeExtensions(
         writer,
         w -> {
@@ -422,6 +416,8 @@ abstract class MessagingGenerator {
 
   // Dependency injection.
 
+  // Registrations are generated whatever NSmithy's generateDependencyInjection says: consumers can
+  // only be hosted through them, since the bindings they pass are internal.
   private void writeExtensions(CSharpWriter writer, Consumer<CSharpWriter> registrations) {
     writer.addImport("Microsoft.Extensions.DependencyInjection");
     writer.addImport("Microsoft.Extensions.DependencyInjection.Extensions");
