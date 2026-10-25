@@ -53,5 +53,5 @@ and bote aims to follow [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 - Maven Central publication for the `bote` and `smithy-asyncapi` artifacts,
   targeting Java 21.
 
-[Unreleased]: https://github.com/thomaslaich/bote/compare/v0.1.0...HEAD
-[0.1.0]: https://github.com/thomaslaich/bote/releases/tag/v0.1.0
+[Unreleased]: https://github.com/toml-ai/bote/compare/v0.1.0...HEAD
+[0.1.0]: https://github.com/toml-ai/bote/releases/tag/v0.1.0
