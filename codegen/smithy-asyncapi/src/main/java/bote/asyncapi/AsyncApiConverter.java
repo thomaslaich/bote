@@ -122,7 +122,9 @@ final class AsyncApiConverter {
 
   private static boolean isRedisService(ServiceShape service) {
     return service.hasTrait(BoteIndex.REDIS_STREAMS_JSON)
-        || service.hasTrait(BoteIndex.REDIS_PUBSUB_JSON);
+        || service.hasTrait(BoteIndex.REDIS_STREAMS_CBOR)
+        || service.hasTrait(BoteIndex.REDIS_PUBSUB_JSON)
+        || service.hasTrait(BoteIndex.REDIS_PUBSUB_CBOR);
   }
 
   private static String contentTypeFor(ServiceShape service) {
@@ -131,6 +133,10 @@ final class AsyncApiConverter {
     }
     if (service.hasTrait(BoteIndex.KAFKA_PROTOBUF)) {
       return "application/protobuf";
+    }
+    if (service.hasTrait(BoteIndex.REDIS_STREAMS_CBOR)
+        || service.hasTrait(BoteIndex.REDIS_PUBSUB_CBOR)) {
+      return "application/cbor";
     }
     return "application/json";
   }

@@ -423,6 +423,46 @@ class AsyncApiConverterTest {
   }
 
   @Test
+  void redisCborServiceUsesCborContentTypeAndEnvelope() {
+    String model =
+        """
+        $version: "2"
+        namespace test
+        use bote#channels
+        use bote#event
+        use bote#redisStream
+        use bote#redisStreamsCbor
+
+        @redisStreamsCbor
+        @channels([RoomEvents])
+        service Rooms { operations: [OpenRoom] }
+
+        @redisStream(key: "rooms:commands")
+        operation OpenRoom { input := { roomId: String } }
+
+        @redisStream(key: "rooms:events")
+        union RoomEvents { opened: RoomOpened }
+
+        @event
+        structure RoomOpened { roomId: String }
+        """;
+    Model assembled = assembleModel(model);
+    ServiceShape service = assembled.expectShape(ShapeId.from("test#Rooms"), ServiceShape.class);
+    ObjectNode doc = new AsyncApiConverter(assembled, service).convert();
+
+    assertEquals("application/cbor", doc.expectStringMember("defaultContentType").getValue());
+    ObjectNode messages = doc.expectObjectMember("components").expectObjectMember("messages");
+    ObjectNode opened = messages.expectObjectMember("RoomOpened");
+    assertEquals("application/cbor", opened.expectStringMember("contentType").getValue());
+    assertTrue(
+        opened
+            .expectObjectMember("payload")
+            .expectObjectMember("properties")
+            .getMember("opened")
+            .isPresent());
+  }
+
+  @Test
   void redisStreamReplyUsesDynamicPubSubChannelAndCorrelationMetadata() {
     String model =
         """

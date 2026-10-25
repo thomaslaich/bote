@@ -29,8 +29,10 @@ class BindingValidatorTest {
       use bote#channels
       use bote#event
       use bote#redisChannel
+      use bote#redisPubSubCbor
       use bote#redisPubSubJson
       use bote#redisStream
+      use bote#redisStreamsCbor
       use bote#redisStreamsJson
       """;
 
@@ -279,6 +281,49 @@ class BindingValidatorTest {
                 output := { activeUsers: Integer }
             }
             """);
+  }
+
+  @Test
+  void redisCborProtocolsBindLikeTheirJsonCounterparts() {
+    assertValid(
+        REDIS
+            + """
+            @redisStreamsCbor
+            @channels([RoomEvents])
+            service Rooms { operations: [GetRoomStatus] }
+
+            @redisStream(key: "rooms:status")
+            operation GetRoomStatus {
+                input := { roomId: String }
+                output := { activeUsers: Integer }
+            }
+
+            @redisStream(key: "rooms:events")
+            union RoomEvents { opened: RoomOpened }
+
+            @event
+            structure RoomOpened { roomId: String }
+
+            @redisPubSubCbor
+            service Presence { operations: [SetPresence] }
+
+            @redisChannel(name: "presence.commands")
+            operation SetPresence { input := { userId: String } }
+            """);
+  }
+
+  @Test
+  void redisCborProtocolRejectsTheOtherBrokersAddress() {
+    assertError(
+        REDIS
+            + """
+            @redisPubSubCbor
+            service Presence { operations: [SetPresence] }
+
+            @redisStream(key: "presence.commands")
+            operation SetPresence { input := { userId: String } }
+            """,
+        "redisChannel");
   }
 
   @Test

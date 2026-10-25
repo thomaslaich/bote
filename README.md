@@ -18,7 +18,9 @@ protocol and binding traits, build-time validators, and a reference AsyncAPI
 | `@kafkaAvro` | `@kafkaTopic` | Avro |
 | `@kafkaProtobuf` | `@kafkaTopic` | Protobuf |
 | `@redisStreamsJson` | `@redisStream` | JSON |
+| `@redisStreamsCbor` | `@redisStream` | CBOR |
 | `@redisPubSubJson` | `@redisChannel` | JSON |
+| `@redisPubSubCbor` | `@redisChannel` | CBOR |
 
 A bote service owns its contract. It receives **commands**, which are its
 operations, and publishes **events** to **channels**, which are unions it lists

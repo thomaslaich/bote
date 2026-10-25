@@ -28,6 +28,8 @@ public final class BoteIndex implements KnowledgeIndex {
   public static final ShapeId KAFKA_PROTOBUF = ShapeId.from("bote#kafkaProtobuf");
   public static final ShapeId REDIS_STREAMS_JSON = ShapeId.from("bote#redisStreamsJson");
   public static final ShapeId REDIS_PUBSUB_JSON = ShapeId.from("bote#redisPubSubJson");
+  public static final ShapeId REDIS_STREAMS_CBOR = ShapeId.from("bote#redisStreamsCbor");
+  public static final ShapeId REDIS_PUBSUB_CBOR = ShapeId.from("bote#redisPubSubCbor");
 
   public static final ShapeId KAFKA_TOPIC = ShapeId.from("bote#kafkaTopic");
   public static final ShapeId REDIS_STREAM = ShapeId.from("bote#redisStream");
@@ -61,7 +63,14 @@ public final class BoteIndex implements KnowledgeIndex {
 
   /** The bote protocol traits, in the order a service's protocol is resolved. */
   public static final List<ShapeId> PROTOCOLS =
-      List.of(KAFKA_JSON, KAFKA_AVRO, KAFKA_PROTOBUF, REDIS_STREAMS_JSON, REDIS_PUBSUB_JSON);
+      List.of(
+          KAFKA_JSON,
+          KAFKA_AVRO,
+          KAFKA_PROTOBUF,
+          REDIS_STREAMS_JSON,
+          REDIS_STREAMS_CBOR,
+          REDIS_PUBSUB_JSON,
+          REDIS_PUBSUB_CBOR);
 
   private static final Map<ShapeId, AddressTrait> PROTOCOL_ADDRESS_TRAITS =
       Map.of(
@@ -69,7 +78,9 @@ public final class BoteIndex implements KnowledgeIndex {
           KAFKA_AVRO, KAFKA_TOPIC_TRAIT,
           KAFKA_PROTOBUF, KAFKA_TOPIC_TRAIT,
           REDIS_STREAMS_JSON, REDIS_STREAM_TRAIT,
-          REDIS_PUBSUB_JSON, REDIS_CHANNEL_TRAIT);
+          REDIS_STREAMS_CBOR, REDIS_STREAM_TRAIT,
+          REDIS_PUBSUB_JSON, REDIS_CHANNEL_TRAIT,
+          REDIS_PUBSUB_CBOR, REDIS_CHANNEL_TRAIT);
 
   /**
    * A shape's binding to a broker address.

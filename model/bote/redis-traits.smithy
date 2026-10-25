@@ -28,6 +28,17 @@ use smithy.api#protocolDefinition
 @trait(selector: "service")
 structure redisStreamsJson {}
 
+/// A Smithy protocol for Redis Streams using CBOR serialization.
+///
+/// Identical to @redisStreamsJson except for the encoding: values are the
+/// CBOR serialization rpcv2Cbor defines, and an @event's envelope is a
+/// one-entry map keyed by the channel union member name.
+@protocolDefinition(
+    traits: [bote#redisStream, bote#channels, bote#event]
+)
+@trait(selector: "service")
+structure redisStreamsCbor {}
+
 /// Binds an operation or a channel to a Redis stream.
 ///
 /// On an operation, the owner reads the operation's input, a command, from
@@ -66,6 +77,17 @@ structure redisStream {
 )
 @trait(selector: "service")
 structure redisPubSubJson {}
+
+/// A Smithy protocol for Redis Pub/Sub using CBOR serialization.
+///
+/// Identical to @redisPubSubJson except for the encoding: values are the
+/// CBOR serialization rpcv2Cbor defines, and an @event's envelope is a
+/// one-entry map keyed by the channel union member name.
+@protocolDefinition(
+    traits: [bote#redisChannel, bote#channels, bote#event]
+)
+@trait(selector: "service")
+structure redisPubSubCbor {}
 
 /// Binds an operation or a channel to a Redis Pub/Sub channel.
 ///
