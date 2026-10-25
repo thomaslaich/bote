@@ -170,8 +170,7 @@ messaging surface in place of an HTTP client and server:
 | Client (`generateClient`) | `<Service>Client`, `I<Channel>Handler` per channel | `Add<Service>Client`, `Add<Channel>Consumer` |
 
 A channel handler has one method per event, plus `HandleUnknownAsync` for
-events the contract does not know yet, which skips them by default. The
-registration methods need `generateDependencyInjection: true`.
+events the contract does not know yet, which skips them by default.
 
 The generated code runs on the `Bote.Kafka` or `Bote.Redis`
 NuGet package:

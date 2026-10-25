@@ -50,6 +50,8 @@ class BoteCSharpIntegrationTest {
     assertTrue(server.contains("public interface IPlaceOrderHandler"));
     assertTrue(server.contains("public interface IOrderEventsPublisher"));
     assertTrue(server.contains("PublishPlacedAsync(Test.OrderPlaced @event"));
+    assertTrue(server.contains("AddOrdersCommandConsumer(this IServiceCollection services)"));
+    assertTrue(server.contains("AddOrderEventsPublisher(this IServiceCollection services)"));
     assertFalse(manifest.hasFile(CLIENT));
     assertTrue(manifest.hasFile(SHARED));
   }
@@ -63,6 +65,8 @@ class BoteCSharpIntegrationTest {
     assertTrue(client.contains("public interface IOrderEventsHandler"));
     assertTrue(client.contains("HandlePlacedAsync(Test.OrderPlaced @event"));
     assertTrue(client.contains("HandleUnknownAsync(string type"));
+    assertTrue(client.contains("AddOrdersClient(this IServiceCollection services)"));
+    assertTrue(client.contains("AddOrderEventsConsumer(this IServiceCollection services)"));
     assertFalse(manifest.hasFile(SERVER));
   }
 
