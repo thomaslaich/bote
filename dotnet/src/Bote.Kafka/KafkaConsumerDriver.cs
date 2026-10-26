@@ -17,11 +17,9 @@ internal sealed class KafkaConsumerDriver : IKafkaConsumerDriver
 
     public KafkaConsumerDriver(ConsumerConfig config)
     {
-        var copy = new ConsumerConfig(config)
-        {
-            EnableAutoCommit = true,
-            EnableAutoOffsetStore = false,
-        };
+        var copy = KafkaConfig.Copy(config);
+        copy.EnableAutoCommit = true;
+        copy.EnableAutoOffsetStore = false;
         consumer = new ConsumerBuilder<string?, byte[]>(copy).Build();
     }
 

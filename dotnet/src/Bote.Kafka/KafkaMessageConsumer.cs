@@ -54,7 +54,7 @@ public sealed partial class KafkaMessageConsumer : BackgroundService
     private static Func<IKafkaConsumerDriver> CreateFactory(ConsumerConfig config)
     {
         ArgumentNullException.ThrowIfNull(config);
-        var copy = new ConsumerConfig(config);
+        var copy = KafkaConfig.Copy(config);
         return () => new KafkaConsumerDriver(copy);
     }
 
