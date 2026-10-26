@@ -245,30 +245,33 @@ Breaking:
 ## Why events are not operations
 
 Smithy models a subscription as an operation in `smithy.mqtt#subscribe`: the
-input binds topic labels, and the output is a single event stream. That fits
-MQTT because an MQTT subscription is a request. The client asks the broker
-session for a stream, passes parameters, and the stream lives as long as the
-subscription. A Smithy event stream has the same shape: it belongs to one
-request and ends with it.
+input binds topic labels, and the output is a single event stream. A Smithy
+event stream belongs to one request and ends with it, and an operation is
+something the service receives and serves.
 
-Durable logs work differently:
+What decides the model is whether the owner takes part in the subscription,
+not whether the subscription is durable. In bote's protocols it never does:
 
-- The owner never receives a request from a consumer. It appends to the log
-  whether anyone reads it or not.
-- Consumption state (consumer group, offset, start position, replay) belongs
-  to the consumer and outlives any single connection.
-- Many independent consumer groups read the same channel.
+- The owner never receives a request from a consumer. It appends to a Kafka
+  topic or Redis stream, or publishes to a Redis Pub/Sub channel, whether
+  anyone reads it or not, and the broker delivers.
+- Consumption state belongs to the consumer: a consumer group, an offset and
+  a start position for Kafka and Redis Streams, or only a connection for
+  Redis Pub/Sub, whose subscriptions are bound to it and whose messages are
+  not kept.
+- Many independent consumers read the same channel.
 
-An operation on the owner's service would put consumer concerns into the
-owner's contract. Generic tooling would also read it as an RPC that the owner
+An operation on the owner's service would describe a request the owner can
+never receive, and generic tooling would read it as an RPC that the owner
 serves once per subscriber. A channel shape states what the owner guarantees,
-which is the address, the event set and the encoding, and nothing about how
-it is read.
+which is the address, the event set and the encoding, and leaves delivery
+semantics to the protocol trait. Moving a channel from Redis Pub/Sub to Redis
+Streams is a change of protocol, not of model.
 
-Subscribe-as-operation stays the right model for protocols where a
-subscription is a request with parameters and a lifetime the server takes part
-in, such as WebSocket, server-sent events or MQTT. A bote protocol for those
-would use operations, and the channel model does not prevent that.
+Subscribe-as-operation stays the right model where the owner serves the
+subscription, as a request with parameters and a lifetime, such as WebSocket
+or server-sent events. A bote protocol for those would use operations, and the
+channel model does not prevent that.
 
 ## Generation
 
