@@ -487,14 +487,13 @@ abstract class MessagingGenerator {
   }
 
   private void writeConsumerRegistration(CSharpWriter writer, String name, List<String> inbounds) {
-    String parameters = consumerParameters();
     writer.write(
         """
-        public static IServiceCollection Add$L(this IServiceCollection services$L) =>
+        public static IServiceCollection Add$L(this IServiceCollection services, $L) =>
             $L;
         """,
         name,
-        parameters.isEmpty() ? "" : ", " + parameters,
+        consumerParameters(),
         consumerRegistration(inbounds));
   }
 

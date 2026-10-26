@@ -41,6 +41,8 @@ and bote aims to follow [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 - C# code generation for `@redisStreamsCbor` and `@redisPubSubCbor`; Redis
   Streams replies use the protocol's encoding.
 - Redis Streams entries carry a `content-type` field.
+- Generated Kafka consumer registrations take `KafkaConsumerOptions`, which
+  override the group ID and offset reset per consumer.
 - `@redisStreamsCbor` and `@redisPubSubCbor` protocols, which encode Redis
   values with the CBOR serialization `rpcv2Cbor` defines.
 - `BoteIndex`, a knowledge index that resolves a model's bote services,

@@ -186,6 +186,9 @@ builder.Services
     .AddScoped<ISubmitOrderHandler, SubmitOrderHandler>();
 ```
 
+Each consumer registration takes options of its own, such as the Kafka group
+ID or the Redis Streams consumer group.
+
 C# generation supports `@kafkaJson` and all four Redis protocols, JSON and
 CBOR.
 

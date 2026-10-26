@@ -10,7 +10,7 @@ public sealed class KafkaMessageSender : IMessageSender, IDisposable
     public KafkaMessageSender(ProducerConfig config)
     {
         ArgumentNullException.ThrowIfNull(config);
-        producer = new ProducerBuilder<string?, byte[]>(new ProducerConfig(config)).Build();
+        producer = new ProducerBuilder<string?, byte[]>(KafkaConfig.Copy(config)).Build();
     }
 
     public async Task SendAsync<T>(

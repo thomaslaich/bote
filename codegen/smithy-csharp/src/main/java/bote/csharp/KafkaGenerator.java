@@ -57,12 +57,12 @@ final class KafkaGenerator extends MessagingGenerator {
 
   @Override
   String consumerRegistration(List<String> inbounds) {
-    return "services.AddKafkaMessageConsumer(" + String.join(", ", inbounds) + ")";
+    return "services.AddKafkaMessageConsumer(options, " + String.join(", ", inbounds) + ")";
   }
 
   @Override
   String consumerParameters() {
-    return "";
+    return "KafkaConsumerOptions? options = null";
   }
 
   @Override

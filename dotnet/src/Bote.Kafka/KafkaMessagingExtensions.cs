@@ -15,8 +15,8 @@ public static class KafkaMessagingExtensions
     {
         ArgumentNullException.ThrowIfNull(services);
         ArgumentNullException.ThrowIfNull(options);
-        var producer = new ProducerConfig(options.Producer);
-        var consumer = new ConsumerConfig(options.Consumer);
+        var producer = KafkaConfig.Copy(options.Producer);
+        var consumer = KafkaConfig.Copy(options.Consumer);
         services.AddLogging();
         services.AddSingleton(consumer);
         services.TryAddSingleton<MessageProcessor>();
@@ -28,14 +28,16 @@ public static class KafkaMessagingExtensions
     /// <summary>Connects generated operation definitions to a runtime-owned hosted consumer.</summary>
     public static IServiceCollection AddKafkaMessageConsumer(
         this IServiceCollection services,
+        KafkaConsumerOptions? options,
         params InboundBinding[] bindings
     )
     {
         ArgumentNullException.ThrowIfNull(services);
         ArgumentNullException.ThrowIfNull(bindings);
         var definitions = bindings.ToArray();
+        options ??= new();
         services.AddSingleton<IHostedService>(provider => new KafkaMessageConsumer(
-            provider.GetRequiredService<ConsumerConfig>(),
+            options.Apply(provider.GetRequiredService<ConsumerConfig>()),
             definitions,
             provider.GetRequiredService<MessageProcessor>(),
             provider,
