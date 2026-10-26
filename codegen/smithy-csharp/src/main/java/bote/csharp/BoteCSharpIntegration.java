@@ -6,8 +6,10 @@ import io.github.thomaslaich.nsmithy.csharp.codegen.GenerationContext;
 import io.github.thomaslaich.nsmithy.csharp.codegen.integrations.CSharpIntegration;
 import io.github.thomaslaich.nsmithy.csharp.codegen.integrations.CSharpServiceGenerator;
 import java.util.LinkedHashSet;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.function.BiConsumer;
 import software.amazon.smithy.codegen.core.CodegenException;
 import software.amazon.smithy.model.Model;
 import software.amazon.smithy.model.shapes.ServiceShape;
@@ -31,34 +33,51 @@ public final class BoteCSharpIntegration implements CSharpIntegration {
         .map(protocol -> (ctx, shape) -> generate(ctx, shape, protocol));
   }
 
+  private static final Map<ShapeId, BiConsumer<GenerationContext, Contract>> GENERATORS =
+      Map.of(
+          BoteIndex.KAFKA_JSON, BoteCSharpIntegration::kafka,
+          BoteIndex.REDIS_STREAMS_JSON,
+              redis(RedisGenerator.Kind.STREAMS, RedisGenerator.Encoding.JSON),
+          BoteIndex.REDIS_STREAMS_CBOR,
+              redis(RedisGenerator.Kind.STREAMS, RedisGenerator.Encoding.CBOR),
+          BoteIndex.REDIS_PUBSUB_JSON,
+              redis(RedisGenerator.Kind.PUB_SUB, RedisGenerator.Encoding.JSON),
+          BoteIndex.REDIS_PUBSUB_CBOR,
+              redis(RedisGenerator.Kind.PUB_SUB, RedisGenerator.Encoding.CBOR));
+
   private static void generate(GenerationContext context, ServiceShape service, ShapeId protocol) {
-    Contract contract = Contract.of(context.model(), service);
-    if (protocol.equals(BoteIndex.KAFKA_JSON)) {
-      new KafkaGenerator(context, contract).run();
-      KafkaInfrastructureGenerator infrastructure = new KafkaInfrastructureGenerator(contract);
-      if (infrastructure.hasTopics()) {
-        String namespace = context.settings().csharpNamespace(service.getId().getNamespace());
-        context
-            .writerDelegator()
-            .useFileWriter(
-                namespace.replace('.', '/')
-                    + "/"
-                    + contract.serviceName()
-                    + ".Kafka.Infrastructure.g.cs",
-                namespace,
-                infrastructure::run);
-      }
-    } else if (protocol.equals(BoteIndex.REDIS_STREAMS_JSON)) {
-      new RedisGenerator(context, contract, RedisGenerator.Kind.STREAMS).run();
-    } else if (protocol.equals(BoteIndex.REDIS_PUBSUB_JSON)) {
-      new RedisGenerator(context, contract, RedisGenerator.Kind.PUB_SUB).run();
-    } else {
-      throw new CodegenException(
-          "bote C# code generation does not support @"
-              + protocol.getName()
-              + " yet, on "
-              + service.getId()
-              + ".");
+    Optional.ofNullable(GENERATORS.get(protocol))
+        .orElseThrow(
+            () ->
+                new CodegenException(
+                    "bote C# code generation does not support @"
+                        + protocol.getName()
+                        + " yet, on "
+                        + service.getId()
+                        + "."))
+        .accept(context, Contract.of(context.model(), service));
+  }
+
+  private static void kafka(GenerationContext context, Contract contract) {
+    new KafkaGenerator(context, contract).run();
+    KafkaInfrastructureGenerator infrastructure = new KafkaInfrastructureGenerator(contract);
+    if (infrastructure.hasTopics()) {
+      String namespace =
+          context.settings().csharpNamespace(contract.service().getId().getNamespace());
+      context
+          .writerDelegator()
+          .useFileWriter(
+              namespace.replace('.', '/')
+                  + "/"
+                  + contract.serviceName()
+                  + ".Kafka.Infrastructure.g.cs",
+              namespace,
+              infrastructure::run);
     }
+  }
+
+  private static BiConsumer<GenerationContext, Contract> redis(
+      RedisGenerator.Kind kind, RedisGenerator.Encoding encoding) {
+    return (context, contract) -> new RedisGenerator(context, contract, kind, encoding).run();
   }
 }

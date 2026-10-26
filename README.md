@@ -186,8 +186,8 @@ builder.Services
     .AddScoped<ISubmitOrderHandler, SubmitOrderHandler>();
 ```
 
-C# generation supports `@kafkaJson`, `@redisStreamsJson`, and
-`@redisPubSubJson`.
+C# generation supports `@kafkaJson` and all four Redis protocols, JSON and
+CBOR.
 
 ## Development
 

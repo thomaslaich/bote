@@ -38,6 +38,8 @@ and bote aims to follow [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
   `@redisPubSubJson` services, as the `smithy-csharp-codegen` integration for
   NSmithy 0.14.0, and the `Bote`, `Bote.Kafka`, and
   `Bote.Redis` runtime packages.
+- C# code generation for `@redisStreamsCbor` and `@redisPubSubCbor`; Redis
+  Streams replies use the protocol's encoding.
 - Redis Streams entries carry a `content-type` field.
 - `@redisStreamsCbor` and `@redisPubSubCbor` protocols, which encode Redis
   values with the CBOR serialization `rpcv2Cbor` defines.

@@ -195,7 +195,7 @@ public sealed class RedisStreamsConsumer : BackgroundService
             await driver
                 .PublishAsync(
                     delivery.ReplyTo!,
-                    RedisReplyEnvelope.Encode(delivery.CorrelationId!, reply.Value)
+                    RedisReplyEnvelope.Encode(delivery.CorrelationId!, reply)
                 )
                 .WaitAsync(ct)
                 .ConfigureAwait(false);

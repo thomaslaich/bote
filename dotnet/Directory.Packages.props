@@ -9,6 +9,8 @@
     <PackageVersion Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="10.0.0" />
     <PackageVersion Include="NSmithy.Core" Version="$(NSmithyVersion)" />
     <PackageVersion Include="NSmithy.Codecs.Json" Version="$(NSmithyVersion)" />
+    <PackageVersion Include="NSmithy.Codecs.Cbor" Version="$(NSmithyVersion)" />
+    <PackageVersion Include="System.Formats.Cbor" Version="10.0.13" />
     <PackageVersion Include="NSmithy.MSBuild" Version="$(NSmithyVersion)" />
     <PackageVersion Include="NSmithy.SmithyCli" Version="1.73.0" />
     <PackageVersion Include="Microsoft.NET.Test.Sdk" Version="18.11.0" />

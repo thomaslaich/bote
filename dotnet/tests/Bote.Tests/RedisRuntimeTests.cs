@@ -115,8 +115,14 @@ public sealed class RedisRuntimeTests
         var driver = new FakeRedis();
         driver.Append = (_, _, _, replyTo, correlationId) =>
         {
-            driver.Fire(replyTo!, RedisReplyEnvelope.Encode("different", "0"u8.ToArray()));
-            driver.Fire(replyTo!, RedisReplyEnvelope.Encode(correlationId!, "42"u8.ToArray()));
+            driver.Fire(
+                replyTo!,
+                RedisReplyEnvelope.Encode("different", new MessagePayload("0"u8.ToArray()))
+            );
+            driver.Fire(
+                replyTo!,
+                RedisReplyEnvelope.Encode(correlationId!, new MessagePayload("42"u8.ToArray()))
+            );
         };
         var sender = new RedisStreamsSender(driver, new());
         var reply = await sender.RequestAsync(RequestBinding(), 1);

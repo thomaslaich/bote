@@ -218,7 +218,7 @@ public sealed class RedisIntegrationTests
         await received.Task.WaitAsync(TimeSpan.FromSeconds(5));
     }
 
-    private static Task<ConnectionMultiplexer> ConnectAsync() =>
+    internal static Task<ConnectionMultiplexer> ConnectAsync() =>
         ConnectionMultiplexer.ConnectAsync(Environment.GetEnvironmentVariable("BOTE_TEST_REDIS")!);
 
     private static async Task UntilAsync(Func<Task<bool>> condition)

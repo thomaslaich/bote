@@ -64,6 +64,30 @@
           "baseNamespace": ""
         }
       }
+    },
+    "redisstreamscbor": {
+      "plugins": {
+        "csharp-codegen": {
+          "service": "tests.redisstreamscbor#ChatRoom",
+          "baseNamespace": ""
+        }
+      }
+    },
+    "redisreplycbor": {
+      "plugins": {
+        "csharp-codegen": {
+          "service": "tests.redisreplycbor#Inventory",
+          "baseNamespace": ""
+        }
+      }
+    },
+    "redispubsubcbor": {
+      "plugins": {
+        "csharp-codegen": {
+          "service": "tests.redispubsubcbor#ChatRoom",
+          "baseNamespace": ""
+        }
+      }
     }
   }
 }

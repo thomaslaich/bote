@@ -158,6 +158,39 @@ class BoteCSharpIntegrationTest {
   }
 
   @Test
+  void redisCborServicesUseTheCborCodec() {
+    String model =
+        """
+        $version: "2"
+        namespace test
+        use bote#channels
+        use bote#event
+        use bote#redisStream
+        use bote#redisStreamsCbor
+
+        @redisStreamsCbor
+        @channels([RoomEvents])
+        service Rooms { version: "1", operations: [OpenRoom] }
+
+        @redisStream(key: "rooms:commands")
+        operation OpenRoom { input := { roomId: String } }
+
+        @redisStream(key: "rooms:events")
+        union RoomEvents { opened: RoomOpened }
+
+        @event
+        structure RoomOpened { roomId: String }
+        """;
+    String shared =
+        file(generate(model, "test#Rooms", true, true), Path.of("Test/Rooms.Messaging.g.cs"));
+
+    assertContains(shared, "using NSmithy.Codecs.Cbor;");
+    assertContains(shared, "CborCodecFactory.Default.FromSchema(");
+    assertContains(shared, "ContentType: \"application/cbor\"");
+    assertFalse(shared.contains("JsonCodecFactory"));
+  }
+
+  @Test
   void unsupportedProtocolsAreRejected() {
     String model =
         """
