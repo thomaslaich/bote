@@ -85,6 +85,15 @@
                         },
                         "bindingVersion": "0.5.0"
                     }
+                },
+                "headers": {
+                    "type": "object",
+                    "properties": {
+                        "bote-type": {
+                            "type": "string",
+                            "const": "DimLight"
+                        }
+                    }
                 }
             },
             "LightMeasured": {

@@ -88,8 +88,9 @@ structure PresenceChanged {
 ```
 
 With no output, a Redis Streams operation is fire-and-forget. An output makes
-the same binding request/reply. Kafka and Redis Pub/Sub operations never have
-outputs.
+the same binding request/reply. Kafka operations never have outputs, and Redis
+Pub/Sub services have no operations: Pub/Sub keeps no messages and delivers
+each one to every subscriber, so commands use Redis Streams.
 
 For request/reply, the requester generates `reply_to` and `correlation_id`
 transport metadata, subscribes to the temporary Pub/Sub channel before sending
@@ -113,6 +114,8 @@ is durable.
 - An address has one owning service and one use: one channel, or the address
   of command operations. Operations sharing an address agree on address-level
   values such as Kafka compaction and Redis `maxLen`.
+- Every command carries its operation name as `bote-type`, a Kafka header or a
+  Redis Streams entry field, so several commands can share an address.
 - Channel union member names are the event discriminators. Kafka JSON events
   use an envelope by default, optionally a `bote-type` header or no
   discriminator for a single-event channel.
@@ -184,7 +187,7 @@ builder.Services
 ```
 
 C# generation supports `@kafkaJson`, `@redisStreamsJson`, and
-`@redisPubSubJson`, with one command operation per address.
+`@redisPubSubJson`.
 
 ## Development
 

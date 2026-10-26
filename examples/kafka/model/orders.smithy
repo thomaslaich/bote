@@ -19,6 +19,7 @@ service OrderService {
     version: "1.0.0"
     operations: [
         SubmitOrder
+        CancelOrder
     ]
 }
 
@@ -37,6 +38,18 @@ operation SubmitOrder {
 
         @range(min: 0)
         totalCents: Integer
+    }
+}
+
+/// Cancel an order. Shares the command topic with SubmitOrder; the bote-type
+/// header tells the two apart.
+@kafkaTopic(name: "orders.commands")
+operation CancelOrder {
+    input := {
+        @kafkaKey
+        orderId: String
+
+        reason: String
     }
 }
 

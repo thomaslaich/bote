@@ -15,6 +15,9 @@ use smithy.api#protocolDefinition
 /// Operations and channels in a service annotated with @kafkaAvro are bound
 /// to topics with @kafkaTopic.
 ///
+/// Commands carry the operation name in a Kafka header named "bote-type", so
+/// several commands can share a topic.
+///
 /// Event discrimination is handled by the wire format itself: the schema ID
 /// prefix identifies the writer schema, and thus the event type, of every
 /// message. Multi-event channels require a subjectNamingStrategy that permits

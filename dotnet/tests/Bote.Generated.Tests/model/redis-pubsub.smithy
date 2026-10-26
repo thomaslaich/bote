@@ -11,16 +11,6 @@ use bote#redisPubSubJson
 @channels([ChatEvents])
 service ChatRoom {
     version: "1.0.0"
-    operations: [PostMessage]
-}
-
-@redisChannel(name: "tests.pubsub:commands")
-operation PostMessage {
-    input := {
-        roomId: String
-        userId: String
-        body: String
-    }
 }
 
 @redisChannel(name: "tests.pubsub:events")

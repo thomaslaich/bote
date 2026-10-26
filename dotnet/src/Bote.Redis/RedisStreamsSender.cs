@@ -32,7 +32,13 @@ public sealed class RedisStreamsSender : IMessageSender, IMessageRequestSender
         cancellationToken.ThrowIfCancellationRequested();
         var payload = outbound.Encode(message);
         await driver
-            .AppendAsync(outbound.Address, payload.Value, outbound.MaxLength, payload.ContentType)
+            .AppendAsync(
+                outbound.Address,
+                payload.Value,
+                outbound.MaxLength,
+                payload.ContentType,
+                headers: payload.Headers
+            )
             .WaitAsync(cancellationToken)
             .ConfigureAwait(false);
     }
@@ -84,7 +90,8 @@ public sealed class RedisStreamsSender : IMessageSender, IMessageRequestSender
                     outbound.MaxLength,
                     payload.ContentType,
                     replyTo,
-                    correlationId
+                    correlationId,
+                    payload.Headers
                 )
                 .WaitAsync(deadline.Token)
                 .ConfigureAwait(false);

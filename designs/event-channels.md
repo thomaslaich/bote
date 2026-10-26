@@ -110,11 +110,11 @@ An address trait binds an operation or a channel to a broker address. Its
 target decides the direction: the owner receives commands at an operation's
 address and publishes events to a channel's address.
 
-| Protocol | Address trait | Operation output |
+| Protocol | Address trait | Commands |
 | --- | --- | --- |
-| `@kafkaJson`, `@kafkaAvro`, `@kafkaProtobuf` | `@kafkaTopic(name:, compacted:)` | None |
-| `@redisStreamsJson`, `@redisStreamsCbor` | `@redisStream(key:, maxLen:)` | None, or a reply for request/reply |
-| `@redisPubSubJson`, `@redisPubSubCbor` | `@redisChannel(name:)` | None |
+| `@kafkaJson`, `@kafkaAvro`, `@kafkaProtobuf` | `@kafkaTopic(name:, compacted:)` | One-way |
+| `@redisStreamsJson`, `@redisStreamsCbor` | `@redisStream(key:, maxLen:)` | One-way, or request/reply with an output |
+| `@redisPubSubJson`, `@redisPubSubCbor` | `@redisChannel(name:)`, on channels only | None |
 
 ```smithy
 @trait(selector: ":is(operation, union)")
@@ -128,6 +128,21 @@ structure kafkaTopic {
 
 Request/reply uses `reply_to` and `correlation_id` transport metadata, a
 temporary Pub/Sub reply channel, and at-most-once reply delivery.
+
+Redis Pub/Sub delivers every message to every subscriber and keeps none. A
+command needs one handler and durable delivery, so commands use Redis Streams,
+and a Pub/Sub service only publishes channels.
+
+### Commands
+
+Several command operations can share an address, such as one command topic per
+aggregate. Every command carries its operation's name, such as `PlaceOrder`, as
+`bote-type`: a Kafka record header or a Redis Streams entry field. The payload
+is the bare input.
+
+The owner dispatches on `bote-type`. A command without it goes to the
+address's only command, and a command whose type the owner does not know fails
+its delivery.
 
 ### Encodings
 
@@ -199,9 +214,31 @@ attaches it with `apply`.
 - An `@event` structure is never an operation input or output.
 - `eventDiscrimination: NONE` requires every channel of the service to have
   one member.
-- Kafka and Redis Pub/Sub command operations have no output.
+- Kafka command operations have no output, and Redis Pub/Sub services have no
+  operations.
 - `@kafkaProtobuf` requires `protoIndex` on channel members and on every event
   and command member.
+
+### Evolution
+
+A change is compatible when consumers built from the old contract keep working
+with producers built from the new one, and the other way around.
+
+Compatible:
+
+- Adding an event to a channel. Consumers that do not know it skip it.
+- Adding a command, to a new address or to one other commands use. The owner
+  deploys it before clients send it.
+- Changes to payload structures that Smithy treats as compatible, such as
+  adding an optional member.
+
+Breaking:
+
+- Removing an event, or changing its discriminator: its member name, its
+  `@jsonName`, or its `protoIndex`.
+- Removing or renaming a command operation, whose name is on the wire.
+- Moving a channel or a command to another address, or changing the protocol,
+  the encoding, or `eventDiscrimination`.
 
 ## Why events are not operations
 

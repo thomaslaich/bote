@@ -75,7 +75,25 @@ final class RedisGenerator extends MessagingGenerator {
     }
 
     for (Command command : contract.commands()) {
-      writeCodecMethods(writer, command.name(), command.input());
+      writer.write(
+          """
+          internal static MessagePayload Encode$1L($2L message) =>
+              new(
+                  $3L.Serialize(message),
+                  Headers: new System.Collections.Generic.Dictionary<string, byte[]>
+                  {
+                      [InboundBinding.TypeHeader] = $4Lu8.ToArray(),
+                  },
+                  ContentType: $5L
+              );
+
+          internal static $2L Decode$1L(MessagePayload payload) => $3L.Deserialize(payload.Value);
+          """,
+          command.name(),
+          typeName(command.input()),
+          codec(command.input()),
+          literal(command.type()),
+          CONTENT_TYPE);
       command
           .output()
           .ifPresent(output -> writeCodecMethods(writer, command.name() + "Reply", output));

@@ -53,13 +53,22 @@ public final class BindingValidator extends AbstractValidator {
         }
         continue;
       }
-      for (ShapeId operationId : service.getAllOperations()) {
-        validateOperation(
-            model,
-            service,
-            model.expectShape(operationId, OperationShape.class),
-            addressTrait.get(),
-            events);
+      if (addressTrait.get().equals(BoteIndex.REDIS_CHANNEL_TRAIT)
+          && !service.getAllOperations().isEmpty()) {
+        events.add(
+            error(
+                service,
+                "Redis Pub/Sub services have no operations: Pub/Sub delivers every message to "
+                    + "every subscriber and keeps none, so commands use Redis Streams."));
+      } else {
+        for (ShapeId operationId : service.getAllOperations()) {
+          validateOperation(
+              model,
+              service,
+              model.expectShape(operationId, OperationShape.class),
+              addressTrait.get(),
+              events);
+        }
       }
       for (UnionShape channel : index.channels(service)) {
         listedBy.computeIfAbsent(channel.getId(), id -> new ArrayList<>()).add(service.getId());

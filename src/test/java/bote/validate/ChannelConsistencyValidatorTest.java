@@ -137,7 +137,7 @@ class ChannelConsistencyValidatorTest {
   }
 
   @Test
-  void multipleCommandTypesOnOneAddressIsWarning() {
+  void commandsCanShareAnAddress() {
     String model =
         """
         $version: "2"
@@ -154,7 +154,7 @@ class ChannelConsistencyValidatorTest {
         @kafkaTopic(name: "orders.commands")
         operation Cancel { input := { value: String } }
         """;
-    assertTrue(hasEvent(model, Severity.WARNING, "command types"));
+    assertTrue(validate(model, Severity.WARNING).isEmpty());
     assertTrue(validate(model, Severity.ERROR).isEmpty());
   }
 }

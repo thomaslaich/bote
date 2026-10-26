@@ -13,7 +13,7 @@ use bote#kafkaTopic
 @channels([DeviceEvents])
 service Device {
     version: "1"
-    operations: [Dim]
+    operations: [Dim, Reset]
 }
 
 @kafkaTopic(name: "envelope.commands")
@@ -26,6 +26,15 @@ operation Dim {
         @required
         @kafkaHeader(name: "trace-id")
         traceId: String
+    }
+}
+
+@kafkaTopic(name: "envelope.commands")
+operation Reset {
+    input := {
+        @required
+        @kafkaKey
+        deviceId: String
     }
 }
 
