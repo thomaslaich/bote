@@ -6,17 +6,15 @@
 **[Examples](examples/)** · **[Smithy](https://smithy.io)** ·
 **[AsyncAPI](https://www.asyncapi.com/)**
 
-bote is an opinionated, contract-first messaging framework for Kafka and
-Redis. Commands and events are modeled in [Smithy](https://smithy.io); bote
-validates the contract and generates AsyncAPI and typed code.
+bote is an experimental, opinionated, contract-first messaging framework for
+Kafka and Redis. Commands and events are modeled in
+[Smithy](https://smithy.io); bote validates the contract and generates AsyncAPI
+and typed code. It also serves as a proving ground for Smithy's and
+[NSmithy](https://github.com/thomaslaich/smithy-dotnet)'s extensibility.
 
-- **A [FastStream](https://faststream.ag2.ai/) counterpart.** FastStream
-  derives the contract from Python code; bote derives code from the
-  contract, for any language with a generator. Wire compatibility with
-  FastStream is planned.
-- **A test of Smithy's extensibility.** bote uses only Smithy's extension
-  points and [NSmithy](https://github.com/thomaslaich/smithy-dotnet)'s
-  integration hooks, without forking either.
+bote is inspired by [FastStream](https://faststream.ag2.ai/). FastStream
+derives the contract from Python code; bote derives code from the contract. The
+goal is wire interop with FastStream applications on the JSON protocols.
 
 Its opinions: a service owns the commands it receives and the events it
 publishes, every address has one owner, and traits name addresses, never
