@@ -6,9 +6,21 @@
 **[Examples](examples/)** · **[Smithy](https://smithy.io)** ·
 **[AsyncAPI](https://www.asyncapi.com/)**
 
-bote models Kafka and Redis messaging contracts in Smithy. It provides
-protocol and binding traits, build-time validators, and a reference AsyncAPI
-3.1 generator.
+bote is an opinionated, contract-first messaging framework for Kafka and
+Redis. Commands and events are modeled in [Smithy](https://smithy.io); bote
+validates the contract and generates AsyncAPI and typed code.
+
+- **A [FastStream](https://faststream.ag2.ai/) counterpart.** FastStream
+  derives the contract from Python code; bote derives code from the
+  contract, for any language with a generator. Wire compatibility with
+  FastStream is planned.
+- **A test of Smithy's extensibility.** bote uses only Smithy's extension
+  points and [NSmithy](https://github.com/thomaslaich/smithy-dotnet)'s
+  integration hooks, without forking either.
+
+Its opinions: a service owns the commands it receives and the events it
+publishes, every address has one owner, and traits name addresses, never
+actions, so one contract serves both sides.
 
 ## Protocols
 
@@ -22,12 +34,13 @@ protocol and binding traits, build-time validators, and a reference AsyncAPI
 | `@redisPubSubJson` | `@redisChannel` | JSON |
 | `@redisPubSubCbor` | `@redisChannel` | CBOR |
 
-A bote service owns its contract. It receives **commands**, which are its
-operations, and publishes **events** to **channels**, which are unions it lists
-in `@channels`. The address trait binds both to a broker address. Where it sits
-sets the direction: the owner receives commands at an operation's address and
-publishes events to a channel's address. Traits name addresses, never actions,
-so one contract reads the same from either side.
+A bote service receives **commands**, which are its operations, and publishes
+**events** to **channels**, which are unions it lists in `@channels`. The
+address trait binds both to a broker address. Where it sits sets the
+direction: the owner receives commands at an operation's address and publishes
+events to a channel's address. A channel is broker-neutral: its
+address trait makes it a Kafka topic, a Redis stream, or a Redis Pub/Sub
+channel.
 
 | Role | Marker | Position |
 | --- | --- | --- |
@@ -86,6 +99,11 @@ structure PresenceChanged {
     status: String
 }
 ```
+
+On Redis, this contract uses three streams: `presence.commands`,
+`presence.requests`, and `presence.events`. `PresenceEvents` is a channel
+stored in a stream; `key` is the Redis key of the stream. Replies to
+`GetPresence` travel on temporary Pub/Sub channels the requester names.
 
 With no output, a Redis Streams operation is fire-and-forget. An output makes
 the same binding request/reply. Kafka operations never have outputs, and Redis
@@ -148,50 +166,6 @@ The plugin writes one `<ServiceName>.asyncapi.json` file per bote service.
 channels are `send` operations. `"client"` reverses both. Redis Streams request/reply operations produce an AsyncAPI reply with
 a dynamic `$message.header#/reply_to` address and correlation metadata.
 
-## C#
-
-The `smithy-csharp-codegen` artifact is an integration for
-[NSmithy](https://github.com/thomaslaich/smithy-dotnet) 0.14.0. In an NSmithy
-project, add it to the project's `smithy-build.json`:
-
-```json
-{
-    "version": "1.0",
-    "sources": ["model"],
-    "maven": {
-        "dependencies": ["io.github.thomaslaich.bote:smithy-csharp-codegen:<version>"]
-    }
-}
-```
-
-For a bote service, NSmithy then generates the channels' event types and this
-messaging surface in place of an HTTP client and server:
-
-| Side | Generated | Registration |
-| --- | --- | --- |
-| Owner (`generateServer`) | `I<Operation>Handler` per command, `<Channel>Publisher` per channel | `Add<Service>CommandConsumer`, `Add<Channel>Publisher` |
-| Client (`generateClient`) | `<Service>Client`, `I<Channel>Handler` per channel | `Add<Service>Client`, `Add<Channel>Consumer` |
-
-A channel handler has one method per event, plus `HandleUnknownAsync` for
-events the contract does not know yet, which skips them by default.
-
-The generated code runs on the `Bote.Kafka` or `Bote.Redis`
-NuGet package:
-
-```csharp
-builder.Services
-    .AddKafkaMessaging(new KafkaMessagingOptions { Producer = producer, Consumer = consumer })
-    .AddOrderServiceCommandConsumer()
-    .AddOrderEventsPublisher()
-    .AddScoped<ISubmitOrderHandler, SubmitOrderHandler>();
-```
-
-Each consumer registration takes options of its own, such as the Kafka group
-ID or the Redis Streams consumer group.
-
-C# generation supports `@kafkaJson` and all four Redis protocols, JSON and
-CBOR.
-
 ## Development
 
 The recommended environment uses [Nix](https://nixos.org/) and
@@ -227,7 +201,8 @@ io.github.thomaslaich.bote:smithy-csharp-codegen:<version>
   extends.
 - **[Alloy](https://github.com/disneystreaming/alloy):** Smithy traits used by
   the Protobuf protocol and an inspiration for bote's trait-library design.
-- **[FastStream](https://faststream.ag2.ai/):** an implementation reference for
-  Redis Streams request/reply transport metadata.
+- **[FastStream](https://faststream.ag2.ai/):** the code-first Python
+  counterpart, and the implementation reference for Redis Streams
+  request/reply transport metadata.
 - **[NSmithy](https://github.com/thomaslaich/smithy-dotnet):** the C# generator
   bote's C# integration extends.
